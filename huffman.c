@@ -16,7 +16,6 @@ by: Rogério Chaves (AKA CandyCrayon), 2021
 
 #include "huffman.h"
 
-//TODO: INTEGRAR ISTO COM O TREE HANDLER DO TREE.C
 
 int printLL(TipoNode *cabeca)
 {
@@ -126,30 +125,42 @@ int createWeightedList(char *nomeFicheiro, TipoNode **cabeca)
 
 //recebe uma linked list e retorna uma arvore
 TipoNode *huffmanTree(TipoNode **cabeca) {
-    TipoNode *prev, *next;
+    TipoNode *left, *right;
 
     while (1) {
-        prev = (*cabeca);
-        next = (*cabeca)->next;
+        left = (*cabeca);
+        right = (*cabeca)->next;
 
-        if (next == NULL) {    // se ja so ha 1 elemento esta feito
-            return prev;
+
+        if (right == NULL) {    // se ja so ha 1 elemento esta feito
+            printf("bateu1\n");
+            return left;
         }
 
-        //criar o node pai
+        //criar o node pai e preenchelo
         TipoNode *parent = (TipoNode *)malloc(sizeof(TipoNode));
-
         parent->value = 0;
-        parent->prev = prev;
-        parent->next = next;
-        parent->weight = prev->weight + next->weight;
+        parent->prev = NULL;
+        parent->next = NULL;
+        parent->leftChild = left;
+        parent->rightChild = right;
+        parent->weight = left->weight + right->weight;
+
+        //ligar os childs ao pai
+        parent->leftChild->parent = parent;
+        parent->rightChild->parent = parent;
 
         //refazer a linked list actualizada
-        *cabeca = (*cabeca)->next->next;
+        if(right->next == NULL)
+        {
+            printf("bateu2\n");
+            *cabeca = parent;
+            return parent;
+        }
+        *cabeca = right->next;
         (*cabeca)->prev = NULL;
-        next->next = NULL;
-        
-        printLL(*cabeca);
+        right->next = NULL;
+
 
         /*
 
@@ -175,7 +186,7 @@ void printHuffTree(TipoNode *elemento)
     if (elemento->value == 0) 
     {
         //elemento nao tem valor
-        printf("\tn%p [label = \"N/A\"]\n", elemento);
+        printf("\tn%p [label = \"N/A : %d\"]\n", elemento, elemento->weight);
     } 
     else 
     {
@@ -188,13 +199,13 @@ void printHuffTree(TipoNode *elemento)
         //criar ligacao do pai ao filho
         printf("\tn%p -- n%p\n", elemento->parent, elemento);
     }
-    if (elemento->prev != NULL) 
+    if (elemento->leftChild != NULL) 
     {
         //imprimir recursivamente para cada filho
-        printHuffTree(elemento->prev);    // imprimir primeiro filho
+        printHuffTree(elemento->leftChild);    // imprimir primeiro filho
 
-        if(elemento->next != NULL)
-            printHuffTree(elemento->next);
+        if(elemento->rightChild != NULL)
+            printHuffTree(elemento->rightChild);
     }
     if (elemento->parent == NULL) {
         //fim
@@ -207,10 +218,11 @@ int main(int argc, char *argv[])
 {
     TipoNode *cabeca = NULL;
     createWeightedList(argv[1], &cabeca);
-    TipoNode *raiz = huffmanTree(&cabeca);
     printLL(cabeca);
+    TipoNode *raiz = huffmanTree(&cabeca);
+
     printf("---------\n");
-    //printHuffTree(raiz);
+    printHuffTree(raiz);
 
     printf("\nx\n");
     return 0;
