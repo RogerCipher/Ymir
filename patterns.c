@@ -13,6 +13,9 @@ by: Rogério Chaves (AKA CandyCrayon), 2021
 #include <stdlib.h>
 #include "patterns.h"
 
+//the file will be read in these blocks of space (in bytes):
+#define MAXCHARBUFFER 64000
+
 
 //we call this when we want to add a child to a trie, it returns the child added
 TrieNode *addWeightToChild(char childValue, TrieNode *parent)
@@ -25,6 +28,7 @@ TrieNode *addWeightToChild(char childValue, TrieNode *parent)
         child->parent = parent;
         child->value = childValue;
         child->weight = 1;
+        child->depth = parent->depth +1;
         child->leftBrother = NULL;
         child->rightBrother = NULL;
         child->firstChild = NULL;
@@ -54,13 +58,12 @@ TrieNode *addWeightToChild(char childValue, TrieNode *parent)
     child->parent = parent;
     child->value = childValue;
     child->weight = 1;
+    child->depth = parent->depth +1;
     child->leftBrother = iter;
     child->rightBrother = NULL;
     child->firstChild = NULL;
     iter->rightBrother = child;
     return child;
-    
-    
 }
 
 
@@ -121,10 +124,10 @@ int addCharToTries(char c, TrieTree **head)
             root->rightBrother = NULL;
             root->value = c;
             root->weight = 1;
+            root->depth = 1;
             (*head)->root = root;
             (*head)->currentInsertNode = root;
             (*head)->next = NULL;
-            (*head)->depth = 1;
             return 1;
         }
 
@@ -139,8 +142,8 @@ int addCharToTries(char c, TrieTree **head)
         newTrie->root->rightBrother = NULL;
         newTrie->root->value = c;
         newTrie->root->weight = 1;
-
-        newTrie->depth = 0;
+        newTrie->root->depth = 1;
+ 
         newTrie->next = NULL;
         newTrie->currentInsertNode = newTrie->root;
 
@@ -233,22 +236,7 @@ int cutDownUnwanted(TrieNode *branch)
     if(branch->weight == 1)
     {
         cutDownBranch(branch);
-        /*
-        //remove contection from parent to this branch
-        if(branch->leftBrother == NULL)
-        {
-            //this branch was its parents first child
-            branch->parent->firstChild = branch->rightBrother;
-            if(branch->rightBrother != NULL)
-                branch->rightBrother->leftBrother = NULL;
-        }
-        else
-        {
-            branch->leftBrother->rightBrother = branch->rightBrother;
-            branch->rightBrother->leftBrother = branch->leftBrother;
-        }
-        */
-       return 1;
+        return 1;
     }
 
     TrieNode *iter = branch->firstChild;
@@ -271,6 +259,24 @@ int cutDownAllUnwanted(TrieTree *head)
     {
         next = iter->next;
         cutDownUnwanted(iter->root);
+        iter = next;
+    }
+    return 1;
+}
+
+int freeTries(TrieTree *head)
+{
+    //TODO: THIS IS BROKEN
+    TrieTree *iter = head;
+    TrieTree *next;
+    while (iter!= NULL)
+    {
+        next = iter->next;
+        cutDownBranch(iter->root);
+        free(iter->root);
+        iter->root = NULL;
+        free(iter);
+        iter = NULL;
         iter = next;
     }
     return 1;
@@ -336,6 +342,6 @@ int main(int argc, char *argv[])
     printf("---------\n");
     printTriesGrapviz(&head);
 
-
+    //freeTries(head); TODO: THIS IS BROKEN
     return 1;
 }
