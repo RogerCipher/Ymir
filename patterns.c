@@ -16,15 +16,26 @@ by: Rogério Chaves (AKA CandyCrayon), 2021
 //the file will be read in these blocks of space (in bytes):
 #define MAXCHARBUFFER 64000
 
+//this function returns the result of the heuristic of a node in a trie
+int heuristicResult(TrieNode *node)
+{
+    if(node->weight == 1)
+        return 1;
+    return node->weight * node->depth;
+}
 
 //we call this when we want to add a child to a trie, it returns the child added
-TrieNode *addWeightToChild(char childValue, TrieNode *parent)
+TrieNode *addWeightToChild(int childValue, TrieNode *parent)
 {
-    printf("addWeightToChild()\n");
     //first child
     if(parent->firstChild == NULL)
     {
         TrieNode *child = (TrieNode *)malloc(sizeof(TrieNode));
+        if(child == NULL)
+        {
+            printf("failed to allocate memory\n");
+            exit(1);
+        } 
         child->parent = parent;
         child->value = childValue;
         child->weight = 1;
@@ -55,6 +66,11 @@ TrieNode *addWeightToChild(char childValue, TrieNode *parent)
 
 
     TrieNode *child = (TrieNode *)malloc(sizeof(TrieNode));
+    if(child == NULL)
+    {
+        printf("failed to allocate memory\n");
+        exit(1);
+    } 
     child->parent = parent;
     child->value = childValue;
     child->weight = 1;
@@ -68,9 +84,8 @@ TrieNode *addWeightToChild(char childValue, TrieNode *parent)
 
 
 //this is for adding a char to the current state of a trie
-int addCharToTries(char c, TrieTree **head)
+int addCharToTries(int c, TrieTree **head)
 {
-    printf("addCharToTries(%c)\n", c);
     TrieTree *iter = *head;
     int charHasTrie = 0;
     
@@ -78,18 +93,15 @@ int addCharToTries(char c, TrieTree **head)
     {
         if((*head)->root == NULL)
         {
-            printf("(*head)->root == NULL\n");
             //first one
             break;
         }
         if(c == iter->root->value)
         {
-            printf("%c == %c\n", c, iter->root->value);
             //see if we already have a trie starting by that value,
             charHasTrie = 1;
             if(iter->currentInsertNode == iter->root)
             {
-                printf("    yes\n");
                 //if we do and we are on the root currently
                 iter->root->weight++;
                 iter->currentInsertNode = addWeightToChild(c, iter->currentInsertNode);
@@ -97,7 +109,6 @@ int addCharToTries(char c, TrieTree **head)
             }
             else
             {
-                printf("    no\n");
                 //if we do and are not on the root
                 iter->currentInsertNode = iter->root;
                 iter->root->weight++;
@@ -105,7 +116,6 @@ int addCharToTries(char c, TrieTree **head)
         }
         else
         {
-            printf("%c != %c\n", c, iter->root->value);
             //just add the new node to wherever we are right now
             iter->currentInsertNode = addWeightToChild(c, iter->currentInsertNode);
         }
@@ -114,10 +124,17 @@ int addCharToTries(char c, TrieTree **head)
 
     if(!charHasTrie)
     {
-        printf("!charHasTrie\n");
+        //we dont have a trie starting with this character:
+
         if((*head)->root == NULL)
         {
-            TrieNode *root = (TrieNode *)malloc(sizeof(TrieNode));   
+            //we dont even have any tries, create the first one:
+            TrieNode *root = (TrieNode *)malloc(sizeof(TrieNode)); 
+            if(root == NULL)
+            {
+                printf("failed to allocate memory\n");
+                exit(1);
+            } 
             root->firstChild = NULL;
             root->parent = NULL;
             root->leftBrother = NULL;
@@ -132,9 +149,14 @@ int addCharToTries(char c, TrieTree **head)
         }
 
 
-        //if we didnt found a trie starting by that char, we create it
+        //create a trie for this char
         TrieTree *newTrie = (TrieTree *)malloc(sizeof(TrieTree));
         newTrie->root = (TrieNode *)malloc(sizeof(TrieNode));
+        if((newTrie == NULL) || (newTrie->root == NULL))
+        {
+            printf("failed to allocate memory\n");
+            exit(1);
+        } 
         
         newTrie->root->firstChild = NULL;
         newTrie->root->parent = NULL;
@@ -149,7 +171,7 @@ int addCharToTries(char c, TrieTree **head)
 
 
 
-
+        //put the newly crated trie in the end of the trie list
         iter = *head;
         while (iter->next != NULL)
             iter = iter->next;
@@ -162,16 +184,15 @@ int addCharToTries(char c, TrieTree **head)
 //building tries from a file
 int loadCharacters(char *fileName, TrieTree **head)
 {
-    printf("loadCharacters()\n");
     /*---error handling---*/
-    FILE *file = fopen(fileName, "r");
+    FILE *file = fopen(fileName, "rb");
     if(file == NULL)
     {
         printf("Couldnt find file\n");
         exit(1);
     }
 
-    char currentChar = fgetc(file);
+    int currentChar = fgetc(file);
     if(currentChar == EOF)
     {
         printf("File was empty\n");
@@ -179,102 +200,172 @@ int loadCharacters(char *fileName, TrieTree **head)
     }
 
     /*---char loading---*/
-
+    printf("loading file into tries\n");
     while (currentChar != EOF)
     {
         addCharToTries(currentChar, head);
         currentChar = fgetc(file);
+        /*
+        if(currentChar < 0)
+        {
+            printf("something went terrible wrong : %d\n", currentChar);
+            exit(1);
+        }
+        */
     }
     fclose(file);
     return 1;
 }
 
-
-
-int cutDownBranch(TrieNode *branch)
+//returns a pointer to the best possible heuristic of a node from a trie
+TrieNode *bestHeuristic(TrieNode *node)
 {
-    if(branch == NULL)
-        return 0;
+    //if the weight is 1 we stop looking
+    if(node->weight == 1)
+        return node;
 
-    //remove all children from this node
-    TrieNode *iter = branch->firstChild;
-    TrieNode *next;
+    //if we lost score from the parent we also stop looking
+    if(node->parent != NULL)
+    {
+        if(heuristicResult(node) < heuristicResult(node->parent))
+            return node;
+    }
+
+    TrieNode *bestNode = node;
+    TrieNode *possibleBetterNode;
+
+    //check if any child has a better heuristic
+    TrieNode *iter = node->firstChild;
     while (iter != NULL)
     {
-        next = iter->rightBrother;
-        cutDownBranch(iter);
-        iter = next;
+        possibleBetterNode =  bestHeuristic(iter);
+        if(heuristicResult(node) < heuristicResult(possibleBetterNode))
+            bestNode = possibleBetterNode;
+        iter = iter->rightBrother;
     }
-    branch->firstChild = NULL;
-
-
-    //remove contection from parent to this branch
-    if(branch->leftBrother == NULL)
-    {
-        //this branch was its parents first child
-        branch->parent->firstChild = branch->rightBrother;
-        if(branch->rightBrother != NULL)
-            branch->rightBrother->leftBrother = NULL;
-    }
-    else
-    {
-        branch->leftBrother->rightBrother = branch->rightBrother;
-        if(branch->rightBrother != NULL)
-            branch->rightBrother->leftBrother = branch->leftBrother;
-    }
-
-    //finally free this node
-    free(branch);
-    branch = NULL;
-    return 1;
+    return bestNode;
 }
 
 
-int cutDownUnwanted(TrieNode *branch)
+//returns the best block of repeating chars from all the tries
+CharBlock *bestCharBlock(TrieTree *head)
 {
-
-    if(branch->weight == 1)
+    if(head->root == NULL)
     {
-        cutDownBranch(branch);
-        return 1;
+        printf("attempt to calculate best char block from a trie without root");
+        exit(1);
     }
+       
 
-    TrieNode *iter = branch->firstChild;
-    TrieNode *next;
-    while (iter != NULL)
-    {
-        next = iter->rightBrother;
-        cutDownUnwanted(iter);
-        iter = next;
-    }
-    return 0;
-}
-
-//we do this to cut down branches that dont interest us in the current Tries (aka everything with weight of 1)
-int cutDownAllUnwanted(TrieTree *head)
-{
+    //first lets determine in what trie is the best match:
     TrieTree *iter = head;
-    TrieTree *next;
-    while (iter!= NULL)
+
+    //initialize as the first one
+    TrieNode *bestLastNode = bestHeuristic(head->root);
+    TrieNode *possibleBetterNode;
+    printf("initialized.. \n");
+    iter = iter->next;
+
+    while (iter != NULL)
     {
-        next = iter->next;
-        cutDownUnwanted(iter->root);
+        if(iter->root == NULL)
+        {
+            printf("something went terribly terribly wrong\n");
+            exit(1);
+        }
+        //check rest of the tries
+        printf("checking: %d\n", (int)iter->root->value);
+        possibleBetterNode = bestHeuristic(iter->root);
+        
+        if(heuristicResult(bestLastNode) < heuristicResult(possibleBetterNode))
+        {
+            printf("found a best one\n");
+            bestLastNode = possibleBetterNode;
+        }
+
+        iter = iter->next;
+    }
+
+    printf("bestHeur calculated\n");
+    
+    //now that we have the best node we know that the char block is made
+    //by going from its trie root to that node, or in other words:
+    //we go from the best node to the parents and add them to the start of the block:
+
+    CharBlock *lastChar = (CharBlock *)malloc(sizeof(CharBlock));
+    if(lastChar == NULL)
+    {
+        printf("failed to allocate memory\n");
+        exit(1);
+    } 
+    lastChar->breakHere = 1;
+    lastChar->next = NULL;
+    
+
+
+
+    CharBlock *prevChar = (CharBlock *)malloc(sizeof(CharBlock));
+    if(prevChar == NULL)
+    {
+        printf("failed to allocate memory\n");
+        exit(1);
+    } 
+    prevChar->breakHere = 0;
+    prevChar->next = lastChar;
+    prevChar->value = bestLastNode->value;
+
+
+
+    TrieNode *iterNode = bestLastNode->parent;
+    while (iterNode != NULL)
+    {
+        CharBlock *currentChar = (CharBlock *)malloc(sizeof(CharBlock));
+        if(currentChar == NULL)
+        {
+            printf("failed to allocate memory\n");
+            exit(1);
+        }
+        currentChar->breakHere = 0;
+        currentChar->next = prevChar;
+        currentChar->value = iterNode->value;
+
+        iterNode = iterNode->parent;
+        prevChar = currentChar;
+    }
+
+    return prevChar;
+}
+
+
+/*--------- freeing memory ---------------*/
+
+
+int freeTrieNode(TrieNode *node)
+{
+    //free all of its children
+    TrieNode *iter = node->firstChild;
+    TrieNode *next;
+    while (iter != NULL)
+    {
+        next = iter->rightBrother;
+        freeTrieNode(iter);
         iter = next;
     }
+
+    //free the node itself
+    free(node);
+    node = NULL;
     return 1;
 }
 
 int freeTries(TrieTree *head)
 {
-    //TODO: THIS IS BROKEN
     TrieTree *iter = head;
     TrieTree *next;
     while (iter!= NULL)
     {
         next = iter->next;
-        cutDownBranch(iter->root);
-        free(iter->root);
-        iter->root = NULL;
+        freeTrieNode(iter->root);
         free(iter);
         iter = NULL;
         iter = next;
@@ -282,13 +373,36 @@ int freeTries(TrieTree *head)
     return 1;
 }
 
+/*------------ printing data -------*/
+void printCharBlock(CharBlock *head)
+{
+    printf("-------");
+    printf("char block: \n\"");
+    CharBlock *iter = head;
+    while (!iter->breakHere)
+    {
+        printf("%c", iter->value);
+        iter = iter->next;
+    }
+    printf("\"\n");
+    printf("---------\n");
+}
+
 void printGraphviz(TrieNode *elem)
 {
 
-    if (elem->value == ' ') 
+    if(elem->weight == 1)
+        return;
+
+    if((int)elem->value < 0)
+    {
+        printf("wtf \n");
+        exit(1);
+    }
+    if (((int)elem->value < 32) || ((int)elem->value > 126)) 
     {
         //elemento nao tem valor
-        printf("\tn%p [label = \"N/A\"]\n", elem);
+        printf("\tn%p [label = \"ascii number = %d : %d\"]\n", elem, (int)elem->value, elem->weight);
     } 
     else 
     {
@@ -313,7 +427,6 @@ void printGraphviz(TrieNode *elem)
             iterador = next;
         }
     }
-
 }
 
 void printTriesGrapviz(TrieTree **head)
@@ -332,16 +445,24 @@ void printTriesGrapviz(TrieTree **head)
     printf("}\n");
 }
 
+
+/*--------------- main -------------*/
 int main(int argc, char *argv[])
 {
     TrieTree *head = (TrieTree *)malloc(sizeof(TrieTree));
+    printf("Loading characters from file..\n");
     loadCharacters(argv[1], &head);
     printf("---------\n");
-    printTriesGrapviz(&head);
-    cutDownAllUnwanted(head);
-    printf("---------\n");
+
+    printf("Printing Tries..\n");
     printTriesGrapviz(&head);
 
-    //freeTries(head); TODO: THIS IS BROKEN
+    printf("---------\n");
+    printf("making best block..\n");
+    CharBlock *block = bestCharBlock(head);
+    printf("lets print it..\n");
+    printCharBlock(block);
+
+    freeTries(head);
     return 1;
 }

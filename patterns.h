@@ -2,38 +2,41 @@
 #define __PATTERNS_H__
 
 //struct to save blocks of characters
-typedef struct charBlock
+typedef struct st_charBlock
 {
-    struct charBlock *next;
-    char *value;
-    int len;
+    struct st_charBlock *next;
+    int value;
+
+    //used to signal if this is the end of one block and start of other
+    int breakHere;
 }CharBlock;
 
 //struct for a node in the trie
-typedef struct node
+typedef struct st_node
 {
-    struct node *parent;
-    struct node *firstChild;
+    struct st_node *parent;
+    struct st_node *firstChild;
 
-    struct node *leftBrother;
-    struct node *rightBrother;
+    struct st_node *leftBrother;
+    struct st_node *rightBrother;
 
     //para os dados:
     int weight;
     int depth;
-    char value;
+    int value;
 } TrieNode;
 
 //struct for a trie
-typedef struct trieTree
+typedef struct st_trieTree
 {
     TrieNode *root;
     TrieNode *currentInsertNode;
 
-    struct trieTree *next;
+    struct st_trieTree *next;
 } TrieTree;
 
-
+int freeTrieNode(TrieNode *node);
+int freeTries(TrieTree *head);
 
 
 #endif
