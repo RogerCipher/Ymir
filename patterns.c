@@ -32,11 +32,24 @@ int heuristicResult(SuffixTree *node)
     return weight * length;
 }
 
+//returns 0 if there is a child node with this value, 1 otherwize 
+int doesNodeHaveThisChar(SuffixTree *node, int charValue, int *buffer)
+{
+    SuffixTree *nodeChildIter = node->childList;
+    while (nodeChildIter != NULL)
+    {
+        if(buffer[nodeChildIter->weight->indexs[0]] == charValue)
+        {
+            return 1;
+        }
+        nodeChildIter = nodeChildIter->next;
+    }
+    return 0;
+}
 
 //creation of suffix tree with weights optimized with Ukkonen's algorithm
 SuffixTree *createSuffixTree(int *buffer, int bufferLen)
 {
-    //TODO: THIS IS TOTALY BROKEN, REWRITE EVERYTHING PLS
     //starting values of variables
     int remaining = 0;
     SuffixTree *root = (SuffixTree *)malloc(sizeof(SuffixTree));
@@ -47,7 +60,7 @@ SuffixTree *createSuffixTree(int *buffer, int bufferLen)
     end = -1;
 
 
-    int rootHasThisPath;
+    
     //Ukkonen's algorithm implementation
     for(int i = 0;  i < bufferLen; i++)
     {
@@ -58,21 +71,11 @@ SuffixTree *createSuffixTree(int *buffer, int bufferLen)
             if(activeLength == 0)
             {
                 //check if root has a path to this character
-                rootHasThisPath = 0;
-                SuffixTree *rootChildIter = root->childList;
-                while (rootChildIter != NULL)
-                {
-                    if(buffer[rootChildIter->weight->indexs[0]] == buffer[i])
-                    {
-                        rootHasThisPath = 1;
-                        break;
-                    }
-                    rootChildIter = rootChildIter->next;
-                }
-                
-                if(!rootHasThisPath)
+                if(!doesNodeHaveThisChar(activeNode, buffer[i], buffer))
                 {
                     //if root doesnt have a child with this value we create one
+
+                    #if 0
                     SuffixTree *newNode = (SuffixTree *)malloc(sizeof(SuffixTree));
                     newNode->next = NULL;
                     newNode->childList = NULL;
@@ -94,6 +97,7 @@ SuffixTree *createSuffixTree(int *buffer, int bufferLen)
                         //place new node on the end of the list
                         iter->next = newNode;
                     }
+                    #endif
 
                     remaining--;
                     break;
@@ -104,7 +108,28 @@ SuffixTree *createSuffixTree(int *buffer, int bufferLen)
                 activeLength++;
                 break;
             }
-
+            else
+            {
+                if(buffer[rootChildIter->weight->indexs[0] + activeLength]) != buffer[i]
+                {
+                    splitThisWithInternalNode;
+                    pointThisInternalNodeToRoot
+                    if(activeNode == root)
+                    {
+                        activeLength--;
+                        remaining--
+                    }
+                    else
+                    {
+                        activeLength++ acho eu
+                    }
+                }
+                else
+                {
+                    activeLength++;
+                    break;
+                }
+            }
 
 
 
