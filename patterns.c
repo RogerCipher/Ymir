@@ -14,12 +14,13 @@ by: Rogério Chaves (AKA CandyCrayon), 2021
 #include "patterns.h"
 
 //this function returns the result of the heuristic of a suffix in our suffix tree
+#if 0
 int heuristicResult(SuffixTree *node)
 {
     int weight = 1;
 
     //calculate how many times this pattern repeats
-    SuffixWeight *iter = node->weight;
+    SuffixRange *iter = node->rangeList;
     while (iter->next != NULL)
     {
         weight++;
@@ -27,120 +28,80 @@ int heuristicResult(SuffixTree *node)
     }
     
     //calculate patterns length
-    int length = iter->indexs[1] - iter->indexs[0];
+    int length = iter->range[1] - iter->range[0];
 
     return weight * length;
 }
-
-//returns 0 if there is a child node with this value, 1 otherwize 
-int doesNodeHaveThisChar(SuffixTree *node, int charValue, int *buffer)
+#endif
+//creates suffix tree and returns its root
+InternalNode *createSuffixTree(int *buffer, int bufferLen)
 {
-    SuffixTree *nodeChildIter = node->childList;
-    while (nodeChildIter != NULL)
-    {
-        if(buffer[nodeChildIter->weight->indexs[0]] == charValue)
-        {
-            return 1;
-        }
-        nodeChildIter = nodeChildIter->next;
-    }
-    return 0;
-}
 
-//creation of suffix tree with weights optimized with Ukkonen's algorithm
-SuffixTree *createSuffixTree(int *buffer, int bufferLen)
-{
-    //starting values of variables
+    InternalNode *root = (InternalNode *)malloc(sizeof(InternalNode));
+
+    //auxiliar variables to help us build tree
     int remaining = 0;
-    SuffixTree *root = (SuffixTree *)malloc(sizeof(SuffixTree));
-    SuffixTree *activeNode = root;
-    int activeEdge = 0;
+    InternalNode *activeNode = root;
+    int activeEdge = -1;
     int activeLength = 0;
     int *end = (int *)malloc(sizeof(int));
-    end = -1;
+    end = 0;
 
 
-    
-    //Ukkonen's algorithm implementation
-    for(int i = 0;  i < bufferLen; i++)
+    end = 1;
+    InternalNode *iterInternalNode;
+    RangeNode *iterRangeNode;
+
+    //Ukkonens algorithm
+    for(int i = 0; i < bufferLen; i++)
     {
         remaining++;
         end++;
+
         while(remaining > 0)
         {
-            if(activeLength == 0)
+            if(!activeLength) //activeLength == 0
             {
-                //check if root has a path to this character
-                if(!doesNodeHaveThisChar(activeNode, buffer[i], buffer))
+                //check if root has this char
+                iterRangeNode = root->pathList;
+                while (iterRangeNode != NULL)
                 {
-                    //if root doesnt have a child with this value we create one
-
-                    #if 0
-                    SuffixTree *newNode = (SuffixTree *)malloc(sizeof(SuffixTree));
-                    newNode->next = NULL;
-                    newNode->childList = NULL;
-                    newNode->weight->next = NULL;
-                    newNode->weight->indexs[0] = i;
-                    newNode->weight->indexs[1] = end;
-
-                    if(root->childList == NULL)
-                    //first child
-                        root->childList = newNode;
-                    else
+                    if(buffer[iterRangeNode->firstRange->range[0]] == buffer[i])
                     {
-                        //not the first child
-
-                        //go to the end of root child list
-                        SuffixTree *iter = root->childList;
-                        while (iter->next != NULL)
-                            iter = iter->next;
-                        //place new node on the end of the list
-                        iter->next = newNode;
+                        //root has this path
+                        //optional: add here new Range
+                        activeEdge = iterRangeNode->firstRange->range[0];
+                        activeLength++;
+                        break;
                     }
-                    #endif
-
-                    remaining--;
-                    break;
+                    
+                    iterRangeNode = iterRangeNode->sibling;
                 }
-
-                //if it does have that child
-                activeEdge = rootChildIter->weight->indexs[0];
-                activeLength++;
-                break;
+                //root doesnt have this char, we need to create it
+                RangeLL *newRangeLL = (RangeLL *)malloc(sizeof(RangeLL));
+                newRangeLL->next = NULL;
+                newRangeLL->range[0] = i;
+                newRangeLL->range[1] = end; //TODO: HOW DO I DO THIS???
+                RangeNode *newRangeNode = (RangeNode *)malloc(sizeof(RangeNode));
+                newRangeNode->firstRange = newRangeLL;
+                newRangeNode->sibling = NULL;
+                newRangeNode->rangeCount = 1;
+                newRangeNode->nextInternalNode = NULL;
+                remaining--;
             }
             else
             {
-                if(buffer[rootChildIter->weight->indexs[0] + activeLength]) != buffer[i]
-                {
-                    splitThisWithInternalNode;
-                    pointThisInternalNodeToRoot
-                    if(activeNode == root)
-                    {
-                        activeLength--;
-                        remaining--
-                    }
-                    else
-                    {
-                        activeLength++ acho eu
-                    }
-                }
-                else
-                {
-                    activeLength++;
-                    break;
-                }
+                if()
             }
-
-
-
-
-
-            
         }
+
+
+
     }
 
-
 }
+
+
 /*--------------- main -------------*/
 int main(int argc, char *argv[])
 {

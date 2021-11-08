@@ -5,20 +5,39 @@
 
 #define EMPTYCHARVALUE 256 //value for chars that have been replaced in buffer
 
-//for storing each char of a pattern of chars
-typedef struct st_SuffixWeight
+//struct for linked list containing ranges
+typedef struct st_rangeLinkedList
 {
-    struct st_patternWeight *next;
-    int indexs[2];
-}SuffixWeight;
+    //next element in the list
+    struct st_rangeLinkedList *next;
+    //value of the range
+    int range[2];
+}RangeLL;
 
-//for storing patterns of chars found
-typedef struct st_SuffixTree
+//a node that contains information about ranges and the next trieNode
+typedef struct st_RangeTrieNode
 {
-    SuffixWeight *weight;
+    //storing the ranges of this node
+    RangeLL *firstRange;
+    //storing how many ranges there are
+    int rangeCount;
 
-    SuffixTree *childList;
-    SuffixTree *next;
-}SuffixTree;
+    //storing sibling of thins range node
+    struct st_RangeTrieNode *sibling;
+
+    //storing next internal node if there is one
+    struct st_InternalTrieNode *nextInternalNode;
+}RangeNode;
+
+
+typedef struct st_InternalTrieNode
+{
+    //suffix link for Ukkonens algorithm
+    struct st_InternalTrieNode *suffixLink;
+    //pointer to ranges that emerge from this node
+    RangeNode *pathList;
+
+}InternalNode;
+
 
 #endif
