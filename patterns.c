@@ -49,12 +49,14 @@ InternalNode *createSuffixTree(int *buffer, int bufferLen)
 
 
     end = 1;
+    InternalNode *lastCreatedNode;
     InternalNode *iterInternalNode;
     RangeNode *iterRangeNode;
 
     //Ukkonens algorithm
     for(int i = 0; i < bufferLen; i++)
     {
+        lastCreatedNode = root;
         remaining++;
         end++;
 
@@ -91,7 +93,23 @@ InternalNode *createSuffixTree(int *buffer, int bufferLen)
             }
             else
             {
-                if()
+                if(buffer[activeNode->pathList->firstRange->range[0]+activeLength] == buffer[i])
+                {
+                    activeLength++;
+                    break;
+                }
+                else
+                {
+                    //split this node on "i"
+                    //point this new internalNode to "lastCreated Node"
+                    //this newly created node is now "lastCreatedNode"
+                    if(activeNode == root)
+                    {
+                        activeLength--;
+                        remaining--;
+                    }
+                    //like this?
+                }
             }
         }
 
