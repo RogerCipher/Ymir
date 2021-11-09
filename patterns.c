@@ -93,6 +93,12 @@ InternalNode *createSuffixTree(int *buffer, int bufferLen)
             }
             else
             {
+                //check if we jumped an internal node before we do this, if we did:
+                //change the active node to this internalNode we jumped, 
+                //the active edge becomes the range[0] of this internalNode
+                //activeLength = 1
+
+                //else:
                 if(buffer[activeNode->pathList->firstRange->range[0]+activeLength] == buffer[i])
                 {
                     activeLength++;
@@ -101,14 +107,18 @@ InternalNode *createSuffixTree(int *buffer, int bufferLen)
                 else
                 {
                     //split this node on "i"
-                    //point this new internalNode to "lastCreated Node"
+                    //point this new internalNode suffix link to "lastCreated Node"
                     //this newly created node is now "lastCreatedNode"
+                    remaining--;
                     if(activeNode == root)
                     {
                         activeLength--;
-                        remaining--;
+                        activeEdge++;
                     }
-                    //like this?
+                    else
+                    {
+
+                    }
                 }
             }
         }
