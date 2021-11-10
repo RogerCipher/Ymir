@@ -5,24 +5,17 @@
 
 #define EMPTYCHARVALUE 256 //value for chars that have been replaced in buffer
 
-//struct for linked list containing ranges
-typedef struct st_rangeLinkedList
-{
-    //next element in the list
-    struct st_rangeLinkedList *next;
-    //value of the range
-    int range[2];
-}RangeLL;
 
 //a node that contains information about ranges and the next trieNode
 typedef struct st_RangeTrieNode
 {
-    //storing the ranges of this node
-    RangeLL *firstRange;
-    //storing how many ranges there are
-    int rangeCount;
+    //storing the range of this node
+    int range[2];
 
-    //storing sibling of thins range node
+    //storing how many times this range repeats
+    int repeats;
+
+    //storing sibling of this range node
     struct st_RangeTrieNode *sibling;
 
     //storing next internal node if there is one
