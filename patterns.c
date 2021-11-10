@@ -94,9 +94,32 @@ InternalNode *createSuffixTree(int *buffer, int bufferLen)
             else
             {
                 //check if we jumped an internal node before we do this, if we did:
-                //change the active node to this internalNode we jumped, 
-                //the active edge becomes the range[0] of this internalNode
-                //activeLength = 1
+                if(activeLength = activeNode->pathList->firstRange->range[1] - activeNode->pathList->firstRange->range[1])
+                {
+                    //we need to go to the next internal node
+                    //change the active node to this internalNode we jumped, 
+                    activeNode = activeNode->pathList->nextInternalNode;
+                    //the active edge becomes the range[0] of this internalNode
+                    iterRangeNode = activeNode->pathList->firstRange;
+                    while (iterRangeNode != NULL)
+                    {
+                        if(buffer[iterRangeNode->firstRange->range[0]] == buffer[i])
+                        {
+                            //root has this path
+                            //optional: add here new Range
+                            activeEdge = iterRangeNode->firstRange->range[0];
+                            activeLength = 1;
+                            break;
+                        }
+                        
+                        iterRangeNode = iterRangeNode->sibling;
+                    }
+                    //if we didnt find it we have to create it
+
+                    
+                }
+                
+                
 
                 //else:
                 if(buffer[activeNode->pathList->firstRange->range[0]+activeLength] == buffer[i])
