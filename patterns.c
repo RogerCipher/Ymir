@@ -34,11 +34,11 @@ int heuristicResult(SuffixTree *node)
 }
 #endif
 
-RangeNode *newRangeNode(int start, int end)
+RangeNode *newRangeNode(int start, int *end)
 {
     RangeNode *newRangeNode = (RangeNode *)malloc(sizeof(RangeNode));
-    newRangeNode->range[0] = start;
-    newRangeNode->range[1] = end;
+    newRangeNode->rangeStart = start;
+    newRangeNode->rangeEnd = end;
     newRangeNode->repeats = 0;
     newRangeNode->sibling = NULL;
     return newRangeNode;

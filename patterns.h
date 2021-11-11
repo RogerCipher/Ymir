@@ -10,7 +10,8 @@
 typedef struct st_RangeTrieNode
 {
     //storing the range of this node
-    int range[2];
+    int rangeStart;
+    int *rangeEnd;
 
     //storing how many times this range repeats
     int repeats;
