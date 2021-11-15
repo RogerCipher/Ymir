@@ -128,7 +128,7 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                 iterRangeNode = activeNode->pathList;
                 while (iterRangeNode != NULL)
                 {
-                    if(iterRangeNode->rangeStart == activeEdge)
+                    if(buffer[iterRangeNode->rangeStart] == buffer[activeEdge])
                     {
                         found = 1;
                         break;
@@ -138,6 +138,7 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                 
                 if(!found)
                 {
+                    //printSuffTree(root);
                     printf("oh no\n");
                     exit(1);
                 }
@@ -145,12 +146,25 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
 
                 //now that we are in the right track lets check if we have are going
                 //to jump an internal node on this track
-                if(activeLength == *iterRangeNode->rangeEnd - iterRangeNode->rangeStart+1) //TODO: IDK WHY THIS IS WORKING
+                if(activeLength > *iterRangeNode->rangeEnd - iterRangeNode->rangeStart+1) //TODO: IDK WHY THIS IS WORKING
                 {
+
+                    /*
+                    //NEW */
+                    activeLength = activeLength - *iterRangeNode->rangeEnd - iterRangeNode->rangeStart+1;
+                    /*
+                    */
+
                     //the range ends here, we need to jump an internal node:
                     activeNode = iterRangeNode->nextInternalNode;
+
+
+                    //prevNodeLen = *iterRangeNode->rangeEnd - iterRangeNode->rangeStart+1;
+
                     iterRangeNode = activeNode->pathList;
                     found = 0;
+
+
                     //then we need to find the active Edge (if there is one:)
                     while (iterRangeNode != NULL)
                     {
@@ -159,7 +173,7 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                             //there is one!
                             activeEdge = iterRangeNode->rangeStart;
                             iterRangeNode->repeats++;
-                            activeLength = 1;
+                            //activeLength = 1;
                             found = 1;
                             break;
                         }
@@ -169,9 +183,53 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                     if(found) //show stoper!
                         break;
 
-                    //there isnt one, what now?
-                    printf("error on the fucking ukkonens \n");
-                    exit(1);
+
+                    //there isnt one, what now? -> we change every path in here
+                    //one by one we check if the paths already have this char:
+                    iterRangeNode = activeNode->pathList;
+                    while (iterRangeNode != NULL)
+                    {
+                        if(activeLength == *iterRangeNode->rangeEnd - iterRangeNode->rangeStart +1)
+                        {
+                            //we have a node there, lets see if there is a path in that node that we need
+                            RangeNode *anotherIterRangeNode;
+                            anotherIterRangeNode = iterRangeNode->nextInternalNode->pathList;
+                            found = 0;
+                            while (anotherIterRangeNode != NULL)
+                            {
+                                if(buffer[anotherIterRangeNode->rangeStart] == buffer[i])
+                                {
+                                    //already has it, next
+                                    found = 1;
+                                    break;
+                                }
+                            }
+                            if(found)
+                                continue;
+
+                            //doesnt have it, so we put the activeEdge here
+                            activeEdge = iterRangeNode->rangeStart;
+                        }
+                        else if(buffer[iterRangeNode->rangeStart + activeLength] == buffer[i])
+                        {
+                            //there is one!
+                            activeEdge = iterRangeNode->rangeStart;
+                            iterRangeNode->repeats++;
+                            activeLength = activeLength - *iterRangeNode->rangeEnd - iterRangeNode->rangeStart +1;
+                            found = 1;
+                            break;
+                        }
+                        else
+                        {
+                            printf("fds n sei mais \n");
+                            activeEdge = iterRangeNode->rangeStart;
+                            break;
+                        }
+                        iterRangeNode = iterRangeNode->sibling;
+                    }
+                    
+                    //printf("error on the fucking ukkonens \n");
+                    //exit(1);
                     
                 }
                 else
@@ -254,7 +312,7 @@ void printSuffTree(InternalNode *elemento)
     if (elemento->suffixLink != NULL)
         printf("\tn%p -- n%p\n", elemento, elemento->suffixLink);
     RangeNode *iter = elemento->pathList;
-    printf("\tn%p [label = \"Node %c\"]\n", elemento, elemento);
+    printf("\tn%p [label = \"Node\"]\n", elemento);
     
     while (iter != NULL)
     {
@@ -270,6 +328,10 @@ void printSuffTree(InternalNode *elemento)
 
 }
 
+int freeSuffTree(InternalNode *elem)
+{
+    return 1;
+}
 
 
 /*--------------- main -------------*/
@@ -292,8 +354,9 @@ int main(int argc, char *argv[])
     printFilePatterns(patterns);
     #endif
     
-    int testBuffer[10] = {(int)'x', (int)'y', (int)'z', (int)'x', (int)'y', (int)'a', (int)'x', (int)'y', (int)'z', (int)'$'};
-    InternalNode *root = createWeightedSuffixTree(testBuffer, 10);
+    //int testBuffer[10] = {(int)'x', (int)'y', (int)'z', (int)'x', (int)'y', (int)'a', (int)'x', (int)'y', (int)'z', (int)'$'};
+    int testBuffer[9] = {(int)'m', (int)'i', (int)'s', (int)'s', (int)'i', (int)'s', (int)'s', (int)'i',(int)'$'};
+    InternalNode *root = createWeightedSuffixTree(testBuffer, 9);
     printf("Copy the following code to https://dreampuf.github.io/GraphvizOnline\n");
     printf("graph {\n");
     printSuffTree(root);
