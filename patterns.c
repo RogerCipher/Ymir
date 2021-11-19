@@ -34,23 +34,7 @@ int heuristicResult(SuffixTree *node)
 }
 #endif
 
-RangeNode *newRangeNode(int start, int *end)
-{
-    RangeNode *newRangeNode = (RangeNode *)malloc(sizeof(RangeNode));
-    newRangeNode->rangeStart = start;
-    newRangeNode->rangeEnd = end;
-    newRangeNode->repeats = 0;
-    newRangeNode->sibling = NULL;
-    return newRangeNode;
-}
 
-/*
-InternalNode *splitRange(RangeNode *rangeNode, int where, int end)
-{
-    RangeNode *new = newRangeNode(where, end);
-    range->range[1] = where;
-}
-*/
 
 //Ukkonens algorithm
 InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
@@ -65,6 +49,7 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
 
     int found = 0;
     InternalNode *prevCreatedNode;
+    RangeList *iterRangeList;
     //InternalNode *iterInternalNode;
     RangeNode *iterRangeNode;
     for(int i = 0; i < bufferLen; i++)
@@ -72,222 +57,102 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
         prevCreatedNode = root;
         remaining++;
         (*end)++;
-        while(remaining)
+        while(remaining > 0)
         {
-            if(!activeLength)
+            if(activeLength == 0)
             {
-                //it doesnt have any paths yet (only used for root)
-                if(root->pathList == NULL)
-                {
-                    root->pathList = (RangeNode *)malloc(sizeof(RangeNode));
-                    root->pathList->rangeStart = 0;
-                    root->pathList->nextInternalNode = NULL;
-                    root->pathList->rangeEnd = end;
-                    root->pathList->repeats = 0;
-                    root->pathList->sibling = NULL;
-                    remaining--;
-                    break;
-                }
-
-
-                //check if active node has a path to current buffer[i] value
-                iterRangeNode = root->pathList; //activeNode->pathList;
+                //we are on top of a node, lets see if he has any ranges
+                //attached to it that correspond to the current value we want
+                iterRangeNode = activeNode->pathList;
                 found = 0;
-                while (iterRangeNode != NULL)
+                while(iterRangeNode != NULL)
                 {
-                    if(buffer[iterRangeNode->rangeStart] == buffer[i])
+                    if(buffer[iterRangeNode->ranges->rangeStart] == buffer[i])
                     {
-                        //found it
-                        activeEdge = iterRangeNode->rangeStart;
-                        iterRangeNode->repeats++;
+                        //found it, lets increase our active Length
                         activeLength++;
+                        activeEdge = iterRangeNode->ranges->rangeStart;
+
+                        //and lets add this range to the range node list
+                        RangeList *newRangeList = (RangeList *)malloc(sizeof(RangeList));
+                        newRangeList->next = NULL;
+                        newRangeList->rangeStart = i;
+                        newRangeList->rangeEnd = end;
+                        
+                        //and finally we add it to the end of the range list:
+                        iterRangeList = iterRangeNode->ranges;
+                        while(iterRangeList->next != NULL)
+                            iterRangeList = iterRangeList->next;
+
+                        iterRangeList->next = newRangeList;
+
+                        //this is a show stopper btw
                         found = 1;
                         break;
                     }
-                    iterRangeNode = iterRangeNode->sibling;
                 }
-                if(found) //trick 2: rule 3 extension -> show stopper
+
+                //show stopper
+                if(found)
                     break;
-                //didnt find it, add this element to the range
-                iterRangeNode = activeNode->pathList;
-                while (iterRangeNode->sibling != NULL)
-                    iterRangeNode = iterRangeNode->sibling;
 
-                iterRangeNode->sibling = (RangeNode *)malloc(sizeof(RangeNode));
-                iterRangeNode->sibling->rangeStart = i;
-                iterRangeNode->sibling->nextInternalNode = NULL;
-                iterRangeNode->sibling->rangeEnd = end;
-                iterRangeNode->sibling->repeats = 0;
-                iterRangeNode->sibling->sibling = NULL;
-                remaining--;
-            }
-            else
-            {
-                //lets find our active point! first we go in the way of the right range:
-                found = 0;
-                iterRangeNode = activeNode->pathList;
-                while (iterRangeNode != NULL)
+                //didnt find it
+                //we are going to have to create a node with this value:
+                RangeList *newRangeList = (RangeList *)malloc(sizeof(RangeList));
+                newRangeList->next = NULL;
+                newRangeList->rangeStart = i;
+                newRangeList->rangeEnd = end;
+                RangeNode *newRangeNode =  (RangeNode *)malloc(sizeof(RangeNode));
+                newRangeNode->nextInternalNode = NULL;
+                newRangeNode->ranges = newRangeList;
+                newRangeNode->repeats = 0;
+                newRangeNode->sibling = NULL;
+
+                //and now we add it to the end of the range list of the activeNode:
+                if(activeNode->pathList == NULL)
                 {
-                    if(buffer[iterRangeNode->rangeStart] == buffer[activeEdge])
-                    {
-                        found = 1;
-                        break;
-                    }
-                    iterRangeNode = iterRangeNode->sibling;
-                }
-                
-                if(!found)
-                {
-                    //printSuffTree(root);
-                    printf("oh no\n");
-                    exit(1);
-                }
-
-
-                //now that we are in the right track lets check if we have are going
-                //to jump an internal node on this track
-                if(activeLength > *iterRangeNode->rangeEnd - iterRangeNode->rangeStart+1) //TODO: IDK WHY THIS IS WORKING
-                {
-
-                    /*
-                    //NEW */
-                    activeLength = activeLength - *iterRangeNode->rangeEnd - iterRangeNode->rangeStart+1;
-                    /*
-                    */
-
-                    //the range ends here, we need to jump an internal node:
-                    activeNode = iterRangeNode->nextInternalNode;
-
-
-                    //prevNodeLen = *iterRangeNode->rangeEnd - iterRangeNode->rangeStart+1;
-
-                    iterRangeNode = activeNode->pathList;
-                    found = 0;
-
-
-                    //then we need to find the active Edge (if there is one:)
-                    while (iterRangeNode != NULL)
-                    {
-                        if(buffer[iterRangeNode->rangeStart] == buffer[i])
-                        {
-                            //there is one!
-                            activeEdge = iterRangeNode->rangeStart;
-                            iterRangeNode->repeats++;
-                            //activeLength = 1;
-                            found = 1;
-                            break;
-                        }
-                        iterRangeNode = iterRangeNode->sibling;
-                    }
-
-                    if(found) //show stoper!
-                        break;
-
-
-                    //there isnt one, what now? -> we change every path in here
-                    //one by one we check if the paths already have this char:
-                    iterRangeNode = activeNode->pathList;
-                    while (iterRangeNode != NULL)
-                    {
-                        if(activeLength == *iterRangeNode->rangeEnd - iterRangeNode->rangeStart +1)
-                        {
-                            //we have a node there, lets see if there is a path in that node that we need
-                            RangeNode *anotherIterRangeNode;
-                            anotherIterRangeNode = iterRangeNode->nextInternalNode->pathList;
-                            found = 0;
-                            while (anotherIterRangeNode != NULL)
-                            {
-                                if(buffer[anotherIterRangeNode->rangeStart] == buffer[i])
-                                {
-                                    //already has it, next
-                                    found = 1;
-                                    break;
-                                }
-                            }
-                            if(found)
-                                continue;
-
-                            //doesnt have it, so we put the activeEdge here
-                            activeEdge = iterRangeNode->rangeStart;
-                        }
-                        else if(buffer[iterRangeNode->rangeStart + activeLength] == buffer[i])
-                        {
-                            //there is one!
-                            activeEdge = iterRangeNode->rangeStart;
-                            iterRangeNode->repeats++;
-                            activeLength = activeLength - *iterRangeNode->rangeEnd - iterRangeNode->rangeStart +1;
-                            found = 1;
-                            break;
-                        }
-                        else
-                        {
-                            printf("fds n sei mais \n");
-                            activeEdge = iterRangeNode->rangeStart;
-                            break;
-                        }
-                        iterRangeNode = iterRangeNode->sibling;
-                    }
-                    
-                    //printf("error on the fucking ukkonens \n");
-                    //exit(1);
-                    
+                    //first element:
+                    activeNode->pathList = newRangeNode;
+                    remaining--;
                 }
                 else
                 {
-                    //we dont need to jump a node, lets check if the next thing in this
-                    //range is the value we want:
-                    if(buffer[iterRangeNode->rangeStart + activeLength] == buffer[i])
-                    {
-                        //it is! show stopper
-                        activeLength++;
-                        break;
-                    }
-                    //the value we want is not in the range, we need to split this range
-                    InternalNode *newInternalNode = (InternalNode *)malloc(sizeof(InternalNode));
-                    RangeNode *newRangeNode1 = (RangeNode *)malloc(sizeof(RangeNode));
-                    RangeNode *newRangeNode2 = (RangeNode *)malloc(sizeof(RangeNode));
+                    //not the first element, lets put it in the end
+                    //of the range Node list
+                    iterRangeNode = activeNode->pathList;
+                    while (iterRangeNode->sibling != NULL)
+                        iterRangeNode = iterRangeNode->sibling;
 
-                    //new range for the new prefix
-                    newRangeNode1->nextInternalNode = NULL;
-                    newRangeNode1->sibling = NULL;
-                    newRangeNode1->rangeStart = i;
-                    newRangeNode1->rangeEnd = end;
-                    newRangeNode1->repeats = 0;
-
-                    //new range for the prefix that was there previously
-                    newRangeNode2->nextInternalNode = NULL;
-                    newRangeNode2->rangeEnd = end;
-                    newRangeNode2->rangeStart = iterRangeNode->rangeStart + activeLength;
-                    newRangeNode2->repeats = iterRangeNode->repeats -1;
-                    newRangeNode2->sibling = newRangeNode1;
-
-                    //split the old range
-                    iterRangeNode->rangeEnd = (int *)malloc(sizeof(int));
-                    *iterRangeNode->rangeEnd = iterRangeNode->rangeStart + activeLength -1;
-                    //create new ranges list
-                    newInternalNode->pathList = newRangeNode2;
-                    //conect this new internal node to the previous splitted range
-                    iterRangeNode->nextInternalNode = newInternalNode;
-
-                    //take care of the suffix link
-                    if(prevCreatedNode != root)
-                        prevCreatedNode->suffixLink = newInternalNode;
-
-                    newInternalNode->suffixLink = root;
-                    prevCreatedNode = newInternalNode;
-                    
-                    //rest of rules
+                    iterRangeNode->sibling = newRangeNode;
                     remaining--;
-
-                    if(activeNode == root)
-                    {
-                        activeLength--;
-                        activeEdge++;
-                    }
-                    else
-                    {
-                        activeNode = activeNode->suffixLink;
-                    }
+                }
+            }
+            else
+            {
+                //we have to find our active point,
+                //we do this by going from activeNode in the direction of activeEdge
+                //and we walk the ammount of activeLength
+                
+                //first of all, we check to see if this is going to make us jump to the top of a node:
+                if(activeLength > (*activeNode->pathList->ranges->rangeEnd - activeNode->pathList->ranges->rangeStart +1))
+                {
+                    //we do! so all we have to do is change the active node the jumped node
+                    //and change the activeLenght to 0 and let the code handle it:
+                    activeNode = activeNode->pathList->nextInternalNode;
+                    activeLength = 0;
+                }
+                //then we check if we are going to jump further than the next node:
+                else if(activeLength > (*activeNode->pathList->ranges->rangeEnd - activeNode->pathList->ranges->rangeStart +1))
+                {
+                    //oh no, we have to jump not only the node but we dont know where we are going after, wish us luck
+                    activeNode = activeNode->pathList->nextInternalNode;
+                    activeLength = activeLength - (*activeNode->pathList->ranges->rangeEnd - activeNode->pathList->ranges->rangeStart +1);
+                }
+                else
+                {
+                    //yey we dont have to jump anything! so first we see if the next value
+                    //is the value that we want:
+                    //TODO: YOU ARE HERE DUMBASS
                 }
             }
         }
