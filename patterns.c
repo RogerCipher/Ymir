@@ -36,6 +36,8 @@ int heuristicResult(SuffixTree *node)
 
 
 
+
+
 //Ukkonens algorithm
 InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
 {
@@ -90,6 +92,8 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                         found = 1;
                         break;
                     }
+
+                    iterRangeNode = iterRangeNode->sibling;
                 }
 
                 //show stopper
@@ -132,27 +136,105 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                 //we have to find our active point,
                 //we do this by going from activeNode in the direction of activeEdge
                 //and we walk the ammount of activeLength
+                iterRangeNode = activeNode->pathList;
+                found = 0;
+                while (iterRangeNode != NULL)
+                {
+                    if(buffer[iterRangeNode->ranges->rangeStart] == buffer[activeEdge])
+                    {
+                        //we have found the range node we want
+                        found = 1;
+                        break;
+                    }
+                    iterRangeNode = iterRangeNode->sibling;
+                }
+                if(!found)
+                {
+                    printf("fds\n");
+                    exit(1);
+                }
+
+
+
+
                 
                 //first of all, we check to see if this is going to make us jump to the top of a node:
-                if(activeLength > (*activeNode->pathList->ranges->rangeEnd - activeNode->pathList->ranges->rangeStart +1))
+                if(activeLength == (*iterRangeNode->ranges->rangeEnd - iterRangeNode->ranges->rangeStart +1))
                 {
                     //we do! so all we have to do is change the active node the jumped node
                     //and change the activeLenght to 0 and let the code handle it:
-                    activeNode = activeNode->pathList->nextInternalNode;
+                    activeNode = iterRangeNode->nextInternalNode;
                     activeLength = 0;
                 }
                 //then we check if we are going to jump further than the next node:
-                else if(activeLength > (*activeNode->pathList->ranges->rangeEnd - activeNode->pathList->ranges->rangeStart +1))
+                else if(activeLength > (*iterRangeNode->ranges->rangeEnd - iterRangeNode->ranges->rangeStart +1))
                 {
                     //oh no, we have to jump not only the node but we dont know where we are going after, wish us luck
-                    activeNode = activeNode->pathList->nextInternalNode;
-                    activeLength = activeLength - (*activeNode->pathList->ranges->rangeEnd - activeNode->pathList->ranges->rangeStart +1);
+                    activeNode = iterRangeNode->nextInternalNode;
+                    activeLength = activeLength - (*iterRangeNode->ranges->rangeEnd - iterRangeNode->ranges->rangeStart +1);
                 }
                 else
                 {
                     //yey we dont have to jump anything! so first we see if the next value
                     //is the value that we want:
-                    //TODO: YOU ARE HERE DUMBASS
+                    found = 0;
+                    if(buffer[iterRangeNode->ranges->rangeStart+activeLength] == buffer[i])
+                    {
+                        //it is! nice, we just add to active lenght
+                        activeLength++;
+                    }
+                    else
+                    {
+                        //we need to create an internal node
+                        InternalNode *newInternalNode = (InternalNode *)malloc(sizeof(InternalNode));
+                        
+                        //handle the suffix links
+                        newInternalNode->suffixLink = root;
+                        if(prevCreatedNode != root)
+                            prevCreatedNode->suffixLink = newInternalNode;
+                        prevCreatedNode = newInternalNode;
+
+                        //create the first branch of this node as the one that was already there:
+                        RangeList *oldRangeList = (RangeList *)malloc(sizeof(RangeList));
+                        RangeList *otherIterRangeList = oldRangeList;
+                        iterRangeList = iterRangeNode->ranges;
+
+                        //copy the first range
+                        otherIterRangeList->rangeStart = iterRangeList->rangeStart + activeLength;
+                        otherIterRangeList->rangeEnd = iterRangeList->rangeEnd;
+                        *iterRangeList->rangeEnd = iterRangeList->rangeStart + activeLength -1;
+                        iterRangeList = iterRangeList->next;
+
+                        //do the same thing for all other ranges
+                        while(iterRangeList != NULL)
+                        {
+                            RangeList *newRangeList = (RangeList *)malloc(sizeof(RangeList));
+                            newRangeList->rangeStart = iterRangeList->rangeStart + activeLength;
+                            newRangeList->rangeEnd = (int *)malloc(sizeof(int));
+                            *newRangeList->rangeEnd = *iterRangeList->rangeEnd;
+                            *iterRangeList->rangeEnd = iterRangeList->rangeStart + activeLength -1;
+
+                            otherIterRangeList->next = newRangeList;
+                            otherIterRangeList = newRangeList;
+
+                            iterRangeList = iterRangeList->next;
+                        }
+
+                        //prepare the new internal node
+                        RangeNode *newRangeNode = (RangeNode *)malloc(sizeof(RangeNode));
+                        newRangeNode->nextInternalNode = NULL;
+                        newRangeNode->ranges = oldRangeList;
+                        newRangeNode->sibling = NULL;
+                        newRangeNode->repeats = iterRangeNode->repeats;
+                        newInternalNode->pathList = newRangeNode;
+
+                        //now we can put this internal node where it should be
+                        iterRangeNode->nextInternalNode = newInternalNode;
+
+                        //and finally jump to it and continue
+                        activeNode = newInternalNode;
+                        activeLength = 0;
+                    }
                 }
             }
         }
@@ -181,7 +263,7 @@ void printSuffTree(InternalNode *elemento)
     
     while (iter != NULL)
     {
-        printf("\tn%p [label = \"[%d, %d] (%d)\"]\n", iter, iter->rangeStart, *iter->rangeEnd, iter->repeats);
+        printf("\tn%p [label = \"[%d, %d] (%d)\"]\n", iter, iter->ranges->rangeStart, *iter->ranges->rangeEnd, iter->repeats);
         printf("\tn%p -- n%p\n", elemento, iter);
         if(iter->nextInternalNode != NULL)
         {
