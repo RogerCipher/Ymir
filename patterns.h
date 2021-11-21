@@ -38,5 +38,7 @@ typedef struct st_InternalTrieNode
 
 }InternalNode;
 
+void printSuffTree(InternalNode *elemento);
+
 
 #endif

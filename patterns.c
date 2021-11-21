@@ -137,12 +137,13 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                 //we do this by going from activeNode in the direction of activeEdge
                 //and we walk the ammount of activeLength
                 iterRangeNode = activeNode->pathList;
+
                 found = 0;
                 while (iterRangeNode != NULL)
                 {
                     if(buffer[iterRangeNode->ranges->rangeStart] == buffer[activeEdge])
                     {
-                        //we have found the range node we want
+                        //we have found the range node we want to travel in
                         found = 1;
                         break;
                     }
@@ -150,19 +151,22 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                 }
                 if(!found)
                 {
+                    //we havent found the range node we want to travel in, something is very wrong
                     printf("fds\n");
                     exit(1);
                 }
-
-
-
-
                 
                 //first of all, we check to see if this is going to make us jump to the top of a node:
                 if(activeLength == (*iterRangeNode->ranges->rangeEnd - iterRangeNode->ranges->rangeStart +1))
                 {
                     //we do! so all we have to do is change the active node the jumped node
                     //and change the activeLenght to 0 and let the code handle it:
+                    if(iterRangeNode->nextInternalNode == NULL)
+                    {
+                        printSuffTree(root);
+                        printf("1\n");
+                        exit(1);
+                    }
                     activeNode = iterRangeNode->nextInternalNode;
                     activeLength = 0;
                 }
@@ -170,11 +174,18 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                 else if(activeLength > (*iterRangeNode->ranges->rangeEnd - iterRangeNode->ranges->rangeStart +1))
                 {
                     //oh no, we have to jump not only the node but we dont know where we are going after, wish us luck
+                    if(iterRangeNode->nextInternalNode == NULL)
+                    {
+                        printf("2\n");
+                        exit(1);
+                    }
                     activeNode = iterRangeNode->nextInternalNode;
                     activeLength = activeLength - (*iterRangeNode->ranges->rangeEnd - iterRangeNode->ranges->rangeStart +1);
                 }
                 else
                 {
+                    //TODO: THIS IS ALMOUST FIXED, FINAL PUSH I SWEAR
+                    
                     //yey we dont have to jump anything! so first we see if the next value
                     //is the value that we want:
                     found = 0;
@@ -182,10 +193,12 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                     {
                         //it is! nice, we just add to active lenght
                         activeLength++;
+                        break;
                     }
                     else
                     {
-                        //we need to create an internal node
+                        //we need to split this here, so:
+                        //create an internal node:
                         InternalNode *newInternalNode = (InternalNode *)malloc(sizeof(InternalNode));
                         
                         //handle the suffix links
@@ -202,6 +215,8 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                         //copy the first range
                         otherIterRangeList->rangeStart = iterRangeList->rangeStart + activeLength;
                         otherIterRangeList->rangeEnd = iterRangeList->rangeEnd;
+                        //we need to change the memory address of the end  
+                        iterRangeList->rangeEnd = (int *)malloc(sizeof(int));
                         *iterRangeList->rangeEnd = iterRangeList->rangeStart + activeLength -1;
                         iterRangeList = iterRangeList->next;
 
@@ -212,6 +227,7 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                             newRangeList->rangeStart = iterRangeList->rangeStart + activeLength;
                             newRangeList->rangeEnd = (int *)malloc(sizeof(int));
                             *newRangeList->rangeEnd = *iterRangeList->rangeEnd;
+                            iterRangeList->rangeEnd = (int *)malloc(sizeof(int));
                             *iterRangeList->rangeEnd = iterRangeList->rangeStart + activeLength -1;
 
                             otherIterRangeList->next = newRangeList;
@@ -228,12 +244,37 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                         newRangeNode->repeats = iterRangeNode->repeats;
                         newInternalNode->pathList = newRangeNode;
 
+                        //finally we prepare the new rangeNode made up by the new value we got:
+                        RangeList *otherNewRangeList = (RangeList *)malloc(sizeof(RangeList));
+                        otherNewRangeList->next = NULL;
+                        otherNewRangeList->rangeStart = i;
+                        otherNewRangeList->rangeEnd = end;
+                        RangeNode *newOtherRangeNode = (RangeNode *)malloc(sizeof(RangeNode));
+                        newOtherRangeNode->nextInternalNode = NULL;
+                        newOtherRangeNode->ranges = otherNewRangeList;
+                        newOtherRangeNode->repeats = 0;
+                        newOtherRangeNode->sibling = NULL;
+                        newInternalNode->pathList->sibling = newOtherRangeNode;
+
                         //now we can put this internal node where it should be
                         iterRangeNode->nextInternalNode = newInternalNode;
 
                         //and finally jump to it and continue
-                        activeNode = newInternalNode;
-                        activeLength = 0;
+                        if(newInternalNode == NULL)
+                        {
+                            printf("3\n");
+                            exit(1);
+                        }
+                        remaining --;
+                        if(activeNode == root)
+                        {
+                            activeEdge++;
+                            activeLength--;
+                        }
+                        else
+                        {
+                            activeNode = activeNode->suffixLink;
+                        }
                     }
                 }
             }
