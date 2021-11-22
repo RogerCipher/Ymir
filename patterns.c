@@ -197,6 +197,12 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                     }
                     else
                     {
+
+                        if(i == 8)
+                        {
+                            printSuffTree(root);
+                        }
+
                         //we need to split this here, so:
                         //create an internal node:
                         InternalNode *newInternalNode = (InternalNode *)malloc(sizeof(InternalNode));
@@ -207,59 +213,79 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                             prevCreatedNode->suffixLink = newInternalNode;
                         prevCreatedNode = newInternalNode;
 
-                        //create the first branch of this node as the one that was already there:
-                        RangeList *oldRangeList = (RangeList *)malloc(sizeof(RangeList));
-                        RangeList *otherIterRangeList = oldRangeList;
+                        //now we will cut every range in the current range nodes range list
+                        //at the same time we create the new range for the new internalNode Ranges:
+                        RangeList *newRangeListHead;
+                        RangeList *newRangeList;
+                        RangeList *iterNewRangeList;
                         iterRangeList = iterRangeNode->ranges;
-
-                        //copy the first range
-                        otherIterRangeList->rangeStart = iterRangeList->rangeStart + activeLength;
-                        otherIterRangeList->rangeEnd = iterRangeList->rangeEnd;
-                        //we need to change the memory address of the end  
-                        iterRangeList->rangeEnd = (int *)malloc(sizeof(int));
-                        *iterRangeList->rangeEnd = iterRangeList->rangeStart + activeLength -1;
-                        iterRangeList = iterRangeList->next;
-
-                        //do the same thing for all other ranges
                         while(iterRangeList != NULL)
                         {
-                            RangeList *newRangeList = (RangeList *)malloc(sizeof(RangeList));
+                            //cut the old range
+                            int *thisRangeEnd = (int *)malloc(sizeof(int));
+                            *thisRangeEnd = iterRangeList->rangeStart + activeLength -1;
+                            
+
+                            //get the new ranges start and end
+                            newRangeList = (RangeList *)malloc(sizeof(RangeList));
+                            newRangeList->next = NULL;
                             newRangeList->rangeStart = iterRangeList->rangeStart + activeLength;
-                            newRangeList->rangeEnd = (int *)malloc(sizeof(int));
-                            *newRangeList->rangeEnd = *iterRangeList->rangeEnd;
-                            iterRangeList->rangeEnd = (int *)malloc(sizeof(int));
-                            *iterRangeList->rangeEnd = iterRangeList->rangeStart + activeLength -1;
+                            newRangeList->rangeEnd = iterRangeList->rangeEnd;
 
-                            otherIterRangeList->next = newRangeList;
-                            otherIterRangeList = newRangeList;
+                            //update old ranges end
+                            iterRangeList->rangeEnd = thisRangeEnd;
 
-                            iterRangeList = iterRangeList->next;
+                            //add the new range to the end of range list
+                            if(newRangeListHead == NULL)
+                            {
+                                //first element in the list
+                                newRangeListHead = newRangeList;
+                            }
+                            else
+                            {
+                                //not the first element, put it in the end
+                                iterNewRangeList = newRangeListHead;
+                                while (iterNewRangeList->next != NULL)
+                                    iterNewRangeList = iterNewRangeList->next;
+
+                                iterNewRangeList->next = newRangeList;
+                            }
+
+                            //next
+                            iterRangeList = iterRangeList->next; 
                         }
 
-                        //prepare the new internal node
-                        RangeNode *newRangeNode = (RangeNode *)malloc(sizeof(RangeNode));
-                        newRangeNode->nextInternalNode = NULL;
-                        newRangeNode->ranges = oldRangeList;
-                        newRangeNode->sibling = NULL;
-                        newRangeNode->repeats = iterRangeNode->repeats;
-                        newInternalNode->pathList = newRangeNode;
+                        
 
-                        //finally we prepare the new rangeNode made up by the new value we got:
-                        RangeList *otherNewRangeList = (RangeList *)malloc(sizeof(RangeList));
-                        otherNewRangeList->next = NULL;
-                        otherNewRangeList->rangeStart = i;
-                        otherNewRangeList->rangeEnd = end;
-                        RangeNode *newOtherRangeNode = (RangeNode *)malloc(sizeof(RangeNode));
-                        newOtherRangeNode->nextInternalNode = NULL;
-                        newOtherRangeNode->ranges = otherNewRangeList;
-                        newOtherRangeNode->repeats = 0;
-                        newOtherRangeNode->sibling = NULL;
-                        newInternalNode->pathList->sibling = newOtherRangeNode;
+                        //finally we just need the RangeNode to add here with the new range list:
+                        RangeNode *newRangeNode = (RangeNode *)malloc(sizeof(RangeNode));
+                        //connect the next internal node like it was before
+                        newRangeNode->nextInternalNode = iterRangeNode->nextInternalNode;
+                        newRangeNode->ranges = newRangeListHead;
+                        newRangeNode->repeats = 0;
+                        newRangeNode->sibling = NULL;
+                        newInternalNode->pathList = newRangeNode;
 
                         //now we can put this internal node where it should be
                         iterRangeNode->nextInternalNode = newInternalNode;
 
-                        //and finally jump to it and continue
+                        //create the node for the ranges we just split above:
+                        RangeNode *newSplitRangeNode = (RangeNode *)malloc(sizeof(RangeNode));
+                        newSplitRangeNode->nextInternalNode = NULL;
+                        newSplitRangeNode->repeats = 0;
+                        newSplitRangeNode->sibling = NULL;
+
+                        //create its start and end:
+                        newSplitRangeNode->ranges = (RangeList *)malloc(sizeof(RangeList));
+                        newSplitRangeNode->ranges->next = NULL;
+                        newSplitRangeNode->ranges->rangeStart = i;
+                        newSplitRangeNode->ranges->rangeEnd = end;
+
+                        //add it to the ranges of the internal node we created
+                        newRangeNode->sibling = newSplitRangeNode;
+
+
+                        //we are done, now we just continue the ukkonens:
                         if(newInternalNode == NULL)
                         {
                             printf("3\n");
@@ -300,11 +326,21 @@ void printSuffTree(InternalNode *elemento)
     if (elemento->suffixLink != NULL)
         printf("\tn%p -- n%p\n", elemento, elemento->suffixLink);
     RangeNode *iter = elemento->pathList;
+    RangeList *iterList;
     printf("\tn%p [label = \"Node\"]\n", elemento);
     
     while (iter != NULL)
     {
-        printf("\tn%p [label = \"[%d, %d] (%d)\"]\n", iter, iter->ranges->rangeStart, *iter->ranges->rangeEnd, iter->repeats);
+        iterList = iter->ranges;
+        printf("\tn%p [label = \"", iter);
+        while (iterList != NULL)
+        {
+            printf("[%d, %d]\n", iterList->rangeStart, *iterList->rangeEnd);
+            iterList = iterList->next;
+        }
+        printf("\"]\n""");
+        
+        
         printf("\tn%p -- n%p\n", elemento, iter);
         if(iter->nextInternalNode != NULL)
         {
