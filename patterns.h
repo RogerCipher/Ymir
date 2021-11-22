@@ -5,18 +5,12 @@
 
 #define EMPTYCHARVALUE 256 //value for chars that have been replaced in buffer
 
-typedef struct st_rangeList
-{
-    int rangeStart;
-    int *rangeEnd;
-    struct st_rangeList *next;
-}RangeList;
-
 //a node that contains information about ranges and the next trieNode
 typedef struct st_RangeTrieNode
 {
     //storing the range of this node
-    RangeList *ranges;
+    int rangeStart;
+    int *rangeEnd;
 
     //storing how many times this range repeats
     int repeats;
