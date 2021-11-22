@@ -49,6 +49,13 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
     int *end = (int *)malloc(sizeof(int));
     *end = -1;
 
+
+    //variables to help us in split a range
+    RangeList *newRangeListHead;
+    RangeList *newRangeList;
+    RangeList *iterNewRangeList;
+
+
     int found = 0;
     InternalNode *prevCreatedNode;
     RangeList *iterRangeList;
@@ -168,7 +175,10 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                         exit(1);
                     }
                     activeNode = iterRangeNode->nextInternalNode;
+                    activeEdge += activeLength;
                     activeLength = 0;
+
+
                 }
                 //then we check if we are going to jump further than the next node:
                 else if(activeLength > (*iterRangeNode->ranges->rangeEnd - iterRangeNode->ranges->rangeStart +1))
@@ -180,7 +190,10 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                         exit(1);
                     }
                     activeNode = iterRangeNode->nextInternalNode;
+                    activeEdge += activeLength;
                     activeLength = activeLength - (*iterRangeNode->ranges->rangeEnd - iterRangeNode->ranges->rangeStart +1);
+
+
                 }
                 else
                 {
@@ -188,7 +201,6 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                     
                     //yey we dont have to jump anything! so first we see if the next value
                     //is the value that we want:
-                    found = 0;
                     if(buffer[iterRangeNode->ranges->rangeStart+activeLength] == buffer[i])
                     {
                         //it is! nice, we just add to active lenght
@@ -198,10 +210,15 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                     else
                     {
 
+                        /*
                         if(i == 8)
                         {
+                            printf("4\n------\n");
                             printSuffTree(root);
+                            printf("----");
+                            exit(1);
                         }
+                        */
 
                         //we need to split this here, so:
                         //create an internal node:
@@ -215,22 +232,29 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
 
                         //now we will cut every range in the current range nodes range list
                         //at the same time we create the new range for the new internalNode Ranges:
-                        RangeList *newRangeListHead;
-                        RangeList *newRangeList;
-                        RangeList *iterNewRangeList;
+                        newRangeListHead = NULL;
+                        newRangeList = NULL;
+                        iterNewRangeList = NULL;
+
                         iterRangeList = iterRangeNode->ranges;
-                        while(iterRangeList != NULL)
+                        while(iterRangeList->next != NULL)
                         {
                             //cut the old range
                             int *thisRangeEnd = (int *)malloc(sizeof(int));
                             *thisRangeEnd = iterRangeList->rangeStart + activeLength -1;
                             
 
-                            //get the new ranges start and end
-                            newRangeList = (RangeList *)malloc(sizeof(RangeList));
-                            newRangeList->next = NULL;
-                            newRangeList->rangeStart = iterRangeList->rangeStart + activeLength;
-                            newRangeList->rangeEnd = iterRangeList->rangeEnd;
+
+                         //   if(iterRangeList->next != NULL)
+                         //   {
+
+                                //get the new ranges start and end
+                                newRangeList = (RangeList *)malloc(sizeof(RangeList));
+                                newRangeList->next = NULL;
+                                newRangeList->rangeStart = iterRangeList->rangeStart + activeLength;
+                                newRangeList->rangeEnd = iterRangeList->rangeEnd;
+                          //  }
+
 
                             //update old ranges end
                             iterRangeList->rangeEnd = thisRangeEnd;
@@ -243,19 +267,29 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                             }
                             else
                             {
-                                //not the first element, put it in the end
-                                iterNewRangeList = newRangeListHead;
-                                while (iterNewRangeList->next != NULL)
-                                    iterNewRangeList = iterNewRangeList->next;
+                             //   if(iterRangeList->next != NULL)
+                             //   {
+                                    //not the first element, put it in the end
+                                    iterNewRangeList = newRangeListHead;
+                                    while (iterNewRangeList->next != NULL)
+                                        iterNewRangeList = iterNewRangeList->next;
 
-                                iterNewRangeList->next = newRangeList;
+                                    iterNewRangeList->next = newRangeList;
+                             //   }
+
                             }
 
                             //next
                             iterRangeList = iterRangeList->next; 
                         }
 
-                        
+                        //cut the old range one last time
+                        int *thisRangeEnd = (int *)malloc(sizeof(int));
+                        *thisRangeEnd = iterRangeList->rangeStart + activeLength -1;
+                        //and update it
+                        //update old ranges end
+                        iterRangeList->rangeEnd = thisRangeEnd;
+
 
                         //finally we just need the RangeNode to add here with the new range list:
                         RangeNode *newRangeNode = (RangeNode *)malloc(sizeof(RangeNode));
@@ -284,6 +318,16 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                         //add it to the ranges of the internal node we created
                         newRangeNode->sibling = newSplitRangeNode;
 
+                        /*
+                        
+                        if(i == 8 && remaining == 3)
+                        {
+                            printf("4\n------\n");
+                            printSuffTree(root);
+                            printf("----");
+                            exit(1);
+                        }
+                        */
 
                         //we are done, now we just continue the ukkonens:
                         if(newInternalNode == NULL)
