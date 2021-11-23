@@ -71,9 +71,12 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                 {
                     if(buffer[iterRangeNode->rangeStart] == buffer[i])
                     {
-                        //found it, lets increase our active Length
+                        //found it, lets increase our active Length and repeats
                         activeLength++;
                         activeEdge = iterRangeNode->rangeStart;
+
+                        //this node is repeated
+                        iterRangeNode->repeats++;
 
                         //this is a show stopper btw
                         found = 1;
@@ -139,7 +142,8 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                     printf("fds\n");
                     exit(1);
                 }
-                
+            
+
                 //first of all, we check to see if this is going to make us jump to the top of a node:
                 if(activeLength == (*iterRangeNode->rangeEnd - iterRangeNode->rangeStart +1))
                 {
@@ -151,6 +155,7 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                         printf("1\n");
                         exit(1);
                     }
+
                     activeNode = iterRangeNode->nextInternalNode;
                     activeEdge += activeLength;
                     activeLength = 0;
@@ -169,7 +174,6 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                     activeNode = iterRangeNode->nextInternalNode;
                     activeEdge += activeLength;
                     activeLength = activeLength - (*iterRangeNode->rangeEnd - iterRangeNode->rangeStart +1);
-
 
                 }
                 else
@@ -236,7 +240,6 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                         //add it to the ranges of the internal node we created
                         newRangeNode->sibling = newSplitRangeNode;
 
-
                         //we are done, now we just continue the ukkonens:
                         if(newInternalNode == NULL)
                         {
@@ -263,8 +266,44 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
     return root;
 }
 
+//recursivly count the number of repetitions in a range
+int repetitionsOfRange(RangeNode *elem)
+{
+    //initialization
+    elem->repeats = 0;
+    //if we dont have a nextInternalNode our number of
+    //repetitions is 0 (this sub string occurs 1 time only)
+    if(elem->nextInternalNode == NULL)
+        return 0;
+    
+    //if not we know this ranges repetition is equal to the number of 
+    //internal nodes it has
+    RangeNode *iter = elem->nextInternalNode->pathList;
+    elem->repeats = 0;
+    while (iter != NULL)
+    {
+        elem->repeats += repetitionsOfRange(iter) +1;
+        iter = iter->sibling;
+    }
+    
+    return elem->repeats;
+}
 
+//count the number of repetitions of each range of the suffix tree
+void fillRepetitionsInTree(InternalNode *root)
+{
+    //we will just fill every range in root (recursively) with
+    //the correct repetitions
+    RangeNode *iter = root->pathList;
+    while (iter != NULL)
+    {
+        repetitionsOfRange(iter);
+        iter = iter->sibling;
+    }
+    return;
+}
 
+//simple print for graphviz
 void printSuffTree(InternalNode *elemento)
 {
     /*
@@ -283,7 +322,7 @@ void printSuffTree(InternalNode *elemento)
     while (iter != NULL)
     {
 
-        printf("\tn%p [label = \"[%d, %d]\"]\n""", iter, iter->rangeStart, *iter->rangeEnd);
+        printf("\tn%p [label = \"[%d, %d] (%d)\"]\n""", iter, iter->rangeStart, *iter->rangeEnd, iter->repeats);
         printf("\tn%p -- n%p\n", elemento, iter);
         if(iter->nextInternalNode != NULL)
         {
@@ -295,10 +334,38 @@ void printSuffTree(InternalNode *elemento)
 
 }
 
+//free the suffix tree (duuh)
 int freeSuffTree(InternalNode *elem)
 {
+    if(elem->pathList != NULL)
+    {
+        RangeNode *iter = elem->pathList;
+        RangeNode *next;
+        while (iter != NULL)
+        {
+            if(iter->nextInternalNode != NULL)
+                freeSuffTree(iter->nextInternalNode);
+
+            if(iter->rangeEnd != NULL)
+            {
+                free(iter->rangeEnd);
+                iter->rangeEnd = NULL;
+            }
+            
+            next = iter->sibling;
+            free(iter);
+            iter = NULL;
+
+            iter = next;
+        }
+        
+    }
+    free(elem);
+    elem = NULL;
     return 1;
 }
+
+
 
 
 /*--------------- main -------------*/
@@ -324,6 +391,9 @@ int main(int argc, char *argv[])
     int testBuffer[10] = {(int)'x', (int)'y', (int)'z', (int)'x', (int)'y', (int)'a', (int)'x', (int)'y', (int)'z', (int)'$'};
     //int testBuffer[9] = {(int)'m', (int)'i', (int)'s', (int)'s', (int)'i', (int)'s', (int)'s', (int)'i',(int)'$'};
     InternalNode *root = createWeightedSuffixTree(testBuffer, 10);
+
+    fillRepetitionsInTree(root);
+
     printf("Copy the following code to https://dreampuf.github.io/GraphvizOnline\n");
     printf("graph {\n");
     printSuffTree(root);
