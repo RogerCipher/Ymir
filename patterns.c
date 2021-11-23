@@ -14,41 +14,77 @@ by: Rogério Chaves (AKA CandyCrayon), 2021
 #include "patterns.h"
 
 //this function returns the result of the heuristic of a suffix in our suffix tree
-#if 0
-int heuristicResult(SuffixTree *node)
+int heuristicResult(RangeNode *range)
 {
-    int weight = 1;
-
-    //calculate how many times this pattern repeats
-    SuffixRange *iter = node->rangeList;
-    while (iter->next != NULL)
-    {
-        weight++;
-        iter = iter->next;
-    }
+    //int weight = range->repeats +1;
     
     //calculate patterns length
-    int length = iter->range[1] - iter->range[0];
+    //int length;
 
-    return weight * length;
+    //return weight * length;
+    return 1;
 }
-#endif
 
 
+//removes the uniquechar we used to transform the suffix tree into a true suffix tree
+void removeUniqueChar(InternalNode *elem, int positionOfUniqueChar)
+{
+    RangeNode *iter = elem->pathList;
+    RangeNode *next;
+    while(iter != NULL)
+    {
+        next = iter->sibling;
+        //do the same for all the below nodes
+        if(iter->nextInternalNode != NULL)
+            removeUniqueChar(iter->nextInternalNode, positionOfUniqueChar);
 
 
+        //TODO: make this coede prettyer, it looks like shit bro
 
-//Ukkonens algorithm
+        //check to see if this range has the unique char
+        if(*iter->rangeEnd == positionOfUniqueChar)
+        {
+            
+            if(iter->rangeStart == *iter->rangeEnd)
+            {   
+                //remove it from the pathlist of the internal node:
+                RangeNode *iterFinder = elem->pathList;
+                while (iterFinder->sibling != iter && iterFinder != NULL)
+                    iterFinder = iterFinder->sibling;
+
+                free(iter);
+                iter = NULL;
+
+                iterFinder->sibling = NULL;
+            }
+            else
+            {
+                //its a range with the unique char in the end,
+                //so we just remove the unique char:
+                int *newEnd = (int *)malloc(sizeof(int));
+                *newEnd = positionOfUniqueChar -1;
+                iter->rangeEnd = newEnd;
+            }
+
+        }
+        iter = next;
+    }
+}
+
+
 InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
 {
     InternalNode *root = (InternalNode *)malloc(sizeof(InternalNode));
+
+
+
+    //Ukkonens algorithm
     int remaining = 0;
     InternalNode *activeNode = root;
     int activeEdge = -1;
     int activeLength = 0;
     int *end = (int *)malloc(sizeof(int));
     *end = -1;
-
 
     int found = 0;
     InternalNode *prevCreatedNode;
@@ -262,7 +298,6 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
         }
     }
 
-
     return root;
 }
 
@@ -279,7 +314,7 @@ int repetitionsOfRange(RangeNode *elem)
     //if not we know this ranges repetition is equal to the number of 
     //internal nodes it has
     RangeNode *iter = elem->nextInternalNode->pathList;
-    elem->repeats = 0;
+    elem->repeats = -1;
     while (iter != NULL)
     {
         elem->repeats += repetitionsOfRange(iter) +1;
@@ -365,7 +400,33 @@ int freeSuffTree(InternalNode *elem)
     return 1;
 }
 
+void determineBestPatterns(int *buffer, int bufferLen)
+{
+    if(bufferLen > MAXCHARBUFFER -1)
+    {
+        printf("I want a blank space in the buffer so I can put in the unique var, ty very much\n");
+        exit(1);
+    }
 
+    buffer[bufferLen] = UNIQUECHARVALUE;
+
+    InternalNode *root = createWeightedSuffixTree(buffer, bufferLen +1);
+
+    fillRepetitionsInTree(root);
+
+    //finally we will remove the unique char value that transformed the tree into a 
+    //true suffix tree
+    removeUniqueChar(root, bufferLen);
+
+
+
+
+    printf("Copy the following code to https://dreampuf.github.io/GraphvizOnline\n");
+    printf("graph {\n");
+    printSuffTree(root);
+    printf("}\n");
+
+}
 
 
 /*--------------- main -------------*/
@@ -388,8 +449,14 @@ int main(int argc, char *argv[])
     printFilePatterns(patterns);
     #endif
     
-    int testBuffer[10] = {(int)'x', (int)'y', (int)'z', (int)'x', (int)'y', (int)'a', (int)'x', (int)'y', (int)'z', (int)'$'};
-    //int testBuffer[9] = {(int)'m', (int)'i', (int)'s', (int)'s', (int)'i', (int)'s', (int)'s', (int)'i',(int)'$'};
+    int testBuffer[9] = {(int)'x', (int)'y', (int)'z', (int)'x', (int)'y', (int)'a', (int)'x', (int)'y', (int)'z'};
+    //int testBuffer[8] = {(int)'m', (int)'i', (int)'s', (int)'s', (int)'i', (int)'s', (int)'s', (int)'i'};
+    
+    
+    determineBestPatterns(testBuffer, 9);
+    
+    /*
+    
     InternalNode *root = createWeightedSuffixTree(testBuffer, 10);
 
     fillRepetitionsInTree(root);
@@ -398,6 +465,7 @@ int main(int argc, char *argv[])
     printf("graph {\n");
     printSuffTree(root);
     printf("}\n");
+    */
 
     return 1;
 }

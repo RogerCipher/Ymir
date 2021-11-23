@@ -1,9 +1,9 @@
 #ifndef __PATTERNS_H__
 #define __PATTERNS_H__
 
-#define MAXCHARBUFFER 64000 //the file will be read in these blocks of space (in bytes)
+#define MAXCHARBUFFER 64001 //the file will be read in these blocks of space (in bytes)
 
-#define EMPTYCHARVALUE 256 //value for chars that have been replaced in buffer
+#define UNIQUECHARVALUE 256 //used for an unique value of char
 
 //a node that contains information about ranges and the next trieNode
 typedef struct st_RangeTrieNode
