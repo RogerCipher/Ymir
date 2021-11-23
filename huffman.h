@@ -16,6 +16,22 @@ typedef struct Node
     //para os dados:
     int weight;
     char value;
-} TipoNode;
+}TipoNode;
+
+typedef struct st_charPattern
+{
+    char value;
+    struct st_charPattern *nextValue;
+}CharPattern;
+
+typedef struct st_charPatternList
+{
+    int len;
+    CharPattern *head;
+}CharPatternList;
+
+
+
+
 
 #endif
