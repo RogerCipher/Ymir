@@ -11,9 +11,10 @@ by: Rogério Chaves (AKA CandyCrayon), 2021
 */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "patterns.h"
 
-
+/*
 int suffixLength(RangeNode *range)
 {
 
@@ -25,7 +26,7 @@ int suffixLength(RangeNode *range)
 
     return myRangeLen;
 }
-
+*/
 
 //this function returns the result of the heuristic of a suffix in our suffix tree
 int heuristicResult(RangeNode *range)
@@ -33,7 +34,7 @@ int heuristicResult(RangeNode *range)
     //the weight is how many times it repeats
     int weight = range->repeats;
     
-    int length = suffixLength(range);
+    int length = *range->rangeEnd - range->rangeStart +1;
 
     return weight * length;
 }
@@ -44,16 +45,13 @@ RangeNode *bestRangeNode(InternalNode *elem)
 
     RangeNode *bestNode = elem->pathList;
     RangeNode *iter = elem->pathList->sibling;
+
+    //we actually just see what is the best pattern from root
     while(iter != NULL)
     {
         if(heuristicResult(bestNode) < heuristicResult(iter))
             bestNode = iter;
 
-        if(iter->nextInternalNode != NULL)
-        {
-            if(heuristicResult(bestRangeNode(iter->nextInternalNode)) > heuristicResult(bestNode))
-                bestNode = bestRangeNode(iter->nextInternalNode);
-        }
         iter = iter->sibling;
     }
 
@@ -104,7 +102,7 @@ void removeUniqueChar(InternalNode *elem, int positionOfUniqueChar)
 }
 
 
-InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
+InternalNode *createSuffixTree(int *buffer, int bufferLen)
 {
     InternalNode *root = (InternalNode *)malloc(sizeof(InternalNode));
 
@@ -240,14 +238,13 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                         exit(1);
                     }
                     activeNode = iterRangeNode->nextInternalNode;
+                    activeNode->pathList->repeats++;
                     activeEdge += activeLength;
                     activeLength = activeLength - (*iterRangeNode->rangeEnd - iterRangeNode->rangeStart +1);
 
                 }
                 else
-                {
-                    //TODO: THIS IS ALMOUST FIXED, FINAL PUSH I SWEAR
-                    
+                {   
                     //yey we dont have to jump anything! so first we see if the next value
                     //is the value that we want:
                     if(buffer[iterRangeNode->rangeStart+activeLength] == buffer[i])
@@ -291,7 +288,7 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                         iterRangeNode->rangeEnd = thisRangeEnd;
 
 
-                        newRangeNode->repeats = 0;
+                        newRangeNode->repeats = iterRangeNode->repeats -1;
                         newRangeNode->sibling = NULL;
                         newInternalNode->pathList = newRangeNode;
 
@@ -321,6 +318,7 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                         {
                             activeEdge++;
                             activeLength--;
+                            
                         }
                         else
                         {
@@ -344,7 +342,7 @@ int repetitionsOfRange(RangeNode *elem)
     //repetitions is 0 (this sub string occurs 1 time only)
     if(elem->nextInternalNode == NULL)
         return 0;
-    
+
     //if not we know this ranges repetition is equal to the number of 
     //internal nodes it has
     RangeNode *iter = elem->nextInternalNode->pathList;
@@ -354,6 +352,7 @@ int repetitionsOfRange(RangeNode *elem)
         elem->repeats += repetitionsOfRange(iter) +1;
         iter = iter->sibling;
     }
+
     
     return elem->repeats;
 }
@@ -396,7 +395,7 @@ void printSuffTree(InternalNode *elemento)
     
     while (iter != NULL)
     {
-        printf("\tn%p [label = \"[%d, %d] (%d, %d)\"]\n""", iter, iter->rangeStart, *iter->rangeEnd, iter->repeats ,suffixLength(iter));
+        printf("\tn%p [label = \"[%d, %d] (%d, %d)\"]\n""", iter, iter->rangeStart, *iter->rangeEnd, iter->repeats , *iter->rangeEnd - iter->rangeStart +1);
         printf("\tn%p -- n%p\n", elemento, iter);
 
 
@@ -451,15 +450,21 @@ int freeSuffTree(InternalNode *elem)
 
 void determineBestPatterns(int *buffer, int bufferLen)
 {
-    if(bufferLen > MAXCHARBUFFER -1)
+    if(bufferLen > MAXCHARBUFFER -2)
     {
         printf("I want a blank space in the buffer so I can put in the unique var, ty very much\n");
         exit(1);
     }
 
     buffer[bufferLen] = UNIQUECHARVALUE;
+    printf("\n");
+    for(int i = 0; i < bufferLen+1; i++)
+    {
+        printf("%d ", buffer[i]);
+    }
+    printf("\n ------ %d", bufferLen);
 
-    InternalNode *root = createWeightedSuffixTree(buffer, bufferLen +1);
+    InternalNode *root = createSuffixTree(buffer, bufferLen+1);
 
     fillRepetitionsInTree(root);
 
@@ -477,7 +482,7 @@ void determineBestPatterns(int *buffer, int bufferLen)
     printf("\tnbestNode [label = \"bestNode\"]\n");
     printf("\tn%p -- nbestNode\n", bestRangeNode(root));
     printf("}\n");
-    freeSuffTree(root);
+    //freeSuffTree(root);
 }
 
 #if 0

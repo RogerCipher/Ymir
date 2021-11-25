@@ -232,23 +232,23 @@ int loadFileInBlocks(char *fileName)
         exit(1);
     }
 
-    int i = 0;
+    int len = 0;
     //int allBlocksLoaded = 0;
     int blockBuffer[MAXCHARBUFFER];
 
     while(currentChar > 0)
     {
-        for(i = 0; i < MAXCHARBUFFER -1; i++)
+        for(len = 0; len < MAXCHARBUFFER -1; len++)
         {
 
-            blockBuffer[i] = currentChar;
+            blockBuffer[len] = currentChar;
 
             currentChar = fgetc(file);
             if(currentChar < 0)
                 break;
         }
-
-        determineBestPatterns(blockBuffer, i);
+        printf("len of string read = %d", len);
+        determineBestPatterns(blockBuffer, len+1);
 
         if(currentChar < 0)
         {
