@@ -15,6 +15,7 @@ by: Rogério Chaves (AKA CandyCrayon), 2021
 #include <string.h>
 
 #include "huffman.h"
+#include "patterns.h"
 
 
 int printLL(TipoNode *cabeca)
@@ -76,7 +77,7 @@ int createWeightedList(char *nomeFicheiro, TipoNode **cabeca)
         exit(1);
     }
 
-    char currentChar = fgetc(ficheiro);
+    int currentChar = fgetc(ficheiro);
     if(currentChar == EOF)
     {
         printf("File was empty\n");
@@ -214,8 +215,64 @@ void printHuffTree(TipoNode *elemento)
 }
 
 
+int loadFileInBlocks(char *fileName)
+{
+
+    FILE *file = fopen(fileName, "r");
+    if(file == NULL)
+    {
+        printf("Couldnt find file\n");
+        exit(1);
+    }
+
+    int currentChar = fgetc(file);
+    if(currentChar == EOF)
+    {
+        printf("File was empty\n");
+        exit(1);
+    }
+
+    int i = 0;
+    //int allBlocksLoaded = 0;
+    int blockBuffer[MAXCHARBUFFER];
+
+    while(currentChar > 0)
+    {
+        for(i = 0; i < MAXCHARBUFFER -1; i++)
+        {
+
+            blockBuffer[i] = currentChar;
+
+            currentChar = fgetc(file);
+            if(currentChar < 0)
+                break;
+        }
+
+        determineBestPatterns(blockBuffer, i);
+
+        if(currentChar < 0)
+        {
+            break;
+        }
+        currentChar = fgetc(file);
+            
+    }
+
+
+    fclose(file);
+
+    return 1;
+}
+
+
+
+
 int main(int argc, char *argv[])
 {
+
+    loadFileInBlocks(argv[1]);
+
+    /*
     TipoNode *cabeca = NULL;
     createWeightedList(argv[1], &cabeca);
     printLL(cabeca);
@@ -225,5 +282,6 @@ int main(int argc, char *argv[])
     printHuffTree(raiz);
 
     printf("\nx\n");
+    */
     return 0;
 }

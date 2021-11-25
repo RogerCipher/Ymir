@@ -12,6 +12,10 @@ typedef struct st_RangeTrieNode
     int rangeStart;
     int *rangeEnd;
 
+
+    //for storing the length of the suffix
+    int lenghtOfSuffix;
+
     //storing how many times this range repeats
     int repeats;
 
@@ -20,8 +24,11 @@ typedef struct st_RangeTrieNode
 
     //storing next internal node if there is one
     struct st_InternalTrieNode *nextInternalNode;
-}RangeNode;
 
+    //storing the previous node se we can determine 
+    //the suffix length after
+    struct st_InternalTrieNode *prevInternalNode;
+}RangeNode;
 
 typedef struct st_InternalTrieNode
 {
@@ -30,8 +37,14 @@ typedef struct st_InternalTrieNode
     //pointer to ranges that emerge from this node
     RangeNode *pathList;
 
+    //storing the previous range so we can calculate 
+    //suffix length after
+    RangeNode *prevRangeNode;
+
 }InternalNode;
 
+
+void determineBestPatterns(int *buffer, int bufferLen);
 void printSuffTree(InternalNode *elemento);
 
 

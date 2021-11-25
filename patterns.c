@@ -13,16 +13,52 @@ by: Rogério Chaves (AKA CandyCrayon), 2021
 #include <stdlib.h>
 #include "patterns.h"
 
+
+int suffixLength(RangeNode *range)
+{
+
+    int myRangeLen = *range->rangeEnd - range->rangeStart  +1;
+
+    //check to see if this range is conected to root
+    if(range->prevInternalNode->prevRangeNode != NULL)
+        myRangeLen += suffixLength(range->prevInternalNode->prevRangeNode);
+
+    return myRangeLen;
+}
+
+
 //this function returns the result of the heuristic of a suffix in our suffix tree
 int heuristicResult(RangeNode *range)
 {
-    //int weight = range->repeats +1;
+    //the weight is how many times it repeats
+    int weight = range->repeats;
     
-    //calculate patterns length
-    //int length;
+    int length = suffixLength(range);
 
-    //return weight * length;
-    return 1;
+    return weight * length;
+}
+
+//calculates and returns the best heuristic result node from a parent internal node
+RangeNode *bestRangeNode(InternalNode *elem)
+{
+
+    RangeNode *bestNode = elem->pathList;
+    RangeNode *iter = elem->pathList->sibling;
+    while(iter != NULL)
+    {
+        if(heuristicResult(bestNode) < heuristicResult(iter))
+            bestNode = iter;
+
+        if(iter->nextInternalNode != NULL)
+        {
+            if(heuristicResult(bestRangeNode(iter->nextInternalNode)) > heuristicResult(bestNode))
+                bestNode = bestRangeNode(iter->nextInternalNode);
+        }
+        iter = iter->sibling;
+    }
+
+    return bestNode;
+
 }
 
 
@@ -38,9 +74,6 @@ void removeUniqueChar(InternalNode *elem, int positionOfUniqueChar)
         if(iter->nextInternalNode != NULL)
             removeUniqueChar(iter->nextInternalNode, positionOfUniqueChar);
 
-
-        //TODO: make this coede prettyer, it looks like shit bro
-
         //check to see if this range has the unique char
         if(*iter->rangeEnd == positionOfUniqueChar)
         {
@@ -54,7 +87,6 @@ void removeUniqueChar(InternalNode *elem, int positionOfUniqueChar)
 
                 free(iter);
                 iter = NULL;
-
                 iterFinder->sibling = NULL;
             }
             else
@@ -76,7 +108,7 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
 {
     InternalNode *root = (InternalNode *)malloc(sizeof(InternalNode));
 
-
+    root->prevRangeNode = NULL;
 
     //Ukkonens algorithm
     int remaining = 0;
@@ -134,7 +166,7 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                 newRangeNode->rangeEnd = end;
                 newRangeNode->repeats = 0;
                 newRangeNode->sibling = NULL;
-
+                newRangeNode->prevInternalNode = activeNode;
                 //and now we add it to the end of the range list of the activeNode:
                 if(activeNode->pathList == NULL)
                 {
@@ -244,7 +276,7 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                         int *thisRangeEnd = (int *)malloc(sizeof(int));
                         *thisRangeEnd = iterRangeNode->rangeStart + activeLength -1;
                         
-
+                        newInternalNode->prevRangeNode = iterRangeNode;
 
                         //finally we just need the RangeNode to add here with the new range list:
                         RangeNode *newRangeNode = (RangeNode *)malloc(sizeof(RangeNode));
@@ -252,6 +284,7 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                         newRangeNode->nextInternalNode = iterRangeNode->nextInternalNode;
                         newRangeNode->rangeStart = iterRangeNode->rangeStart + activeLength;
                         newRangeNode->rangeEnd = iterRangeNode->rangeEnd;
+                        newRangeNode->prevInternalNode = newInternalNode;
 
                         //and update it
                         //update old ranges end
@@ -272,6 +305,7 @@ InternalNode *createWeightedSuffixTree(int *buffer, int bufferLen)
                         newSplitRangeNode->sibling = NULL;
                         newSplitRangeNode->rangeStart = i;
                         newSplitRangeNode->rangeEnd = end;
+                        newSplitRangeNode->prevInternalNode = newInternalNode;
 
                         //add it to the ranges of the internal node we created
                         newRangeNode->sibling = newSplitRangeNode;
@@ -351,14 +385,29 @@ void printSuffTree(InternalNode *elemento)
     */
     if (elemento->suffixLink != NULL)
         printf("\tn%p -- n%p\n", elemento, elemento->suffixLink);
+
+    /*
+    if(elemento->prevRangeNode != NULL)
+        printf("\tn%p -- n%p\n", elemento, elemento->prevRangeNode);
+    */
+
     RangeNode *iter = elemento->pathList;
     printf("\tn%p [label = \"Node\"]\n", elemento);
     
     while (iter != NULL)
     {
-
-        printf("\tn%p [label = \"[%d, %d] (%d)\"]\n""", iter, iter->rangeStart, *iter->rangeEnd, iter->repeats);
+        printf("\tn%p [label = \"[%d, %d] (%d, %d)\"]\n""", iter, iter->rangeStart, *iter->rangeEnd, iter->repeats ,suffixLength(iter));
         printf("\tn%p -- n%p\n", elemento, iter);
+
+
+        /*
+        if(iter->prevInternalNode != NULL)
+        {
+            printf("\tn%p -- n%p\n", iter, iter->prevInternalNode);
+        }
+        */
+
+
         if(iter->nextInternalNode != NULL)
         {
             printf("\tn%p -- n%p\n", iter, iter->nextInternalNode);
@@ -421,14 +470,17 @@ void determineBestPatterns(int *buffer, int bufferLen)
 
 
 
+
     printf("Copy the following code to https://dreampuf.github.io/GraphvizOnline\n");
     printf("graph {\n");
     printSuffTree(root);
+    printf("\tnbestNode [label = \"bestNode\"]\n");
+    printf("\tn%p -- nbestNode\n", bestRangeNode(root));
     printf("}\n");
-
+    freeSuffTree(root);
 }
 
-
+#if 0
 /*--------------- main -------------*/
 int main(int argc, char *argv[])
 {
@@ -449,11 +501,11 @@ int main(int argc, char *argv[])
     printFilePatterns(patterns);
     #endif
     
-    int testBuffer[9] = {(int)'x', (int)'y', (int)'z', (int)'x', (int)'y', (int)'a', (int)'x', (int)'y', (int)'z'};
+    int testBuffer[15] = {(int)'x', (int)'y', (int)'z', (int)'x', (int)'y', (int)'a', (int)'x', (int)'y', (int)'z', (int)'x', (int)'y', (int)'z', (int)'x', (int)'y', (int)'z'};
     //int testBuffer[8] = {(int)'m', (int)'i', (int)'s', (int)'s', (int)'i', (int)'s', (int)'s', (int)'i'};
     
     
-    determineBestPatterns(testBuffer, 9);
+    determineBestPatterns(testBuffer, 15);
     
     /*
     
@@ -469,3 +521,4 @@ int main(int argc, char *argv[])
 
     return 1;
 }
+#endif
