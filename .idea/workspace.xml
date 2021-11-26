@@ -42,12 +42,12 @@
     <property name="settings.editor.selected.configurable" value="Errors" />
   </component>
   <component name="RunManager">
-    <configuration default="true" type="CLionExternalRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" PASS_PARENT_ENVS_2="true">
+    <configuration name="Ymir" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="testHuff.txt" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" WORKING_DIR="file://$PROJECT_DIR$" PASS_PARENT_ENVS_2="true" PROJECT_NAME="Ymir" TARGET_NAME="Ymir" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="Ymir" RUN_TARGET_NAME="Ymir">
       <method v="2">
-        <option name="CLION.EXTERNAL.BUILD" enabled="true" />
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
       </method>
     </configuration>
-    <configuration name="Ymir" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="testHuff.txt" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" WORKING_DIR="file://$PROJECT_DIR$" PASS_PARENT_ENVS_2="true" PROJECT_NAME="Ymir" TARGET_NAME="Ymir" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="Ymir" RUN_TARGET_NAME="Ymir">
+    <configuration default="true" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" PASS_PARENT_ENVS_2="true">
       <method v="2">
         <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
       </method>
@@ -67,6 +67,7 @@
       <option name="presentableId" value="Default" />
       <updated>1637854168588</updated>
       <workItem from="1637854169974" duration="4836000" />
+      <workItem from="1637948205884" duration="74000" />
     </task>
     <servers />
   </component>
