@@ -1,6 +1,7 @@
 #ifndef __HUFFMAN_H__
 #define __HUFFMAN_H__
 
+#define MAXFILENAMESIZE 15
 
 typedef struct Node
 {

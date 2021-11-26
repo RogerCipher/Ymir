@@ -3,3 +3,5 @@ patt
 *.out
 huff
 Ulysses
+cmake-build-debug/*
+testHuff.txt

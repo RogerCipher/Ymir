@@ -105,7 +105,7 @@ void removeUniqueChar(InternalNode *elem, int positionOfUniqueChar)
 InternalNode *createSuffixTree(int *buffer, int bufferLen)
 {
     InternalNode *root = (InternalNode *)malloc(sizeof(InternalNode));
-
+    root->pathList = NULL;
     root->prevRangeNode = NULL;
 
     //Ukkonens algorithm
@@ -119,7 +119,7 @@ InternalNode *createSuffixTree(int *buffer, int bufferLen)
     int found = 0;
     InternalNode *prevCreatedNode;
     //InternalNode *iterInternalNode;
-    RangeNode *iterRangeNode;
+    RangeNode *iterRangeNode = NULL;
     for(int i = 0; i < bufferLen; i++)
     {
         prevCreatedNode = root;
