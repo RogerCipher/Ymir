@@ -14,7 +14,7 @@ by: Rogério Chaves (AKA CandyCrayon), 2021
 #include <string.h>
 #include "patterns.h"
 
-/*
+
 int suffixLength(RangeNode *range)
 {
 
@@ -26,7 +26,7 @@ int suffixLength(RangeNode *range)
 
     return myRangeLen;
 }
-*/
+
 
 //this function returns the result of the heuristic of a suffix in our suffix tree
 int heuristicResult(RangeNode *range)
@@ -34,7 +34,7 @@ int heuristicResult(RangeNode *range)
     //the weight is how many times it repeats
     int weight = range->repeats;
     
-    int length = *range->rangeEnd - range->rangeStart +1;
+    int length = *range->rangeEnd - range->rangeStart +1;//suffixLength(range); //*range->rangeEnd - range->rangeStart +1;
 
     return weight * length;
 }
@@ -42,21 +42,28 @@ int heuristicResult(RangeNode *range)
 //calculates and returns the best heuristic result node from a parent internal node
 RangeNode *bestRangeNode(InternalNode *elem)
 {
+    //se for o unico elemento
+    if(elem->pathList->sibling == NULL)
+        return elem->pathList;
 
+    //se nao:
     RangeNode *bestNode = elem->pathList;
     RangeNode *iter = elem->pathList->sibling;
-
-    //we actually just see what is the best pattern from root
-    while(iter != NULL)
+    RangeNode *possiblyBetterNode = NULL;
+    while (iter != NULL)
     {
-        if(heuristicResult(bestNode) < heuristicResult(iter))
-            bestNode = iter;
+        if(iter->nextInternalNode != NULL)
+            possiblyBetterNode = bestRangeNode(iter->nextInternalNode);
+        else
+            possiblyBetterNode = iter;
+
+        if(heuristicResult(possiblyBetterNode) > heuristicResult(bestNode))
+            bestNode = possiblyBetterNode;
 
         iter = iter->sibling;
     }
 
     return bestNode;
-
 }
 
 
@@ -105,7 +112,7 @@ void removeUniqueChar(InternalNode *elem, int positionOfUniqueChar)
 InternalNode *createSuffixTree(int *buffer, int bufferLen)
 {
     InternalNode *root = (InternalNode *)malloc(sizeof(InternalNode));
-    root->pathList = NULL;
+
     root->prevRangeNode = NULL;
 
     //Ukkonens algorithm
@@ -119,7 +126,7 @@ InternalNode *createSuffixTree(int *buffer, int bufferLen)
     int found = 0;
     InternalNode *prevCreatedNode;
     //InternalNode *iterInternalNode;
-    RangeNode *iterRangeNode = NULL;
+    RangeNode *iterRangeNode;
     for(int i = 0; i < bufferLen; i++)
     {
         prevCreatedNode = root;
@@ -357,6 +364,13 @@ int repetitionsOfRange(RangeNode *elem)
     return elem->repeats;
 }
 
+//this removes a certain pattern from a buffer, this could be faster (see KMP substring search : https://www.youtube.com/watch?v=GTJr8OvyEVQ)
+int removeCharSetFromBuffer(int *buffer, int bufferLen)
+{
+
+    return 1;
+}
+
 //count the number of repetitions of each range of the suffix tree
 void fillRepetitionsInTree(InternalNode *root)
 {
@@ -455,7 +469,7 @@ void determineBestPatterns(int *buffer, int bufferLen)
         printf("I want a blank space in the buffer so I can put in the unique var, ty very much\n");
         exit(1);
     }
-
+    printf("bufferLen: %d", bufferLen);
     buffer[bufferLen] = UNIQUECHARVALUE;
     printf("\n");
     for(int i = 0; i < bufferLen+1; i++)

@@ -14,7 +14,6 @@ by: Rogério Chaves (AKA CandyCrayon), 2021
 #include <stdlib.h>
 #include <string.h>
 
-
 #include "huffman.h"
 #include "patterns.h"
 
@@ -270,14 +269,6 @@ int loadFileInBlocks(char *fileName)
 
 int main(int argc, char *argv[])
 {
-
-    if(argc != 2)
-        return 0;
-    if(strlen(argv[1]) > MAXFILENAMESIZE)
-    {
-        printf("file name is too big!\n");
-        return 0;
-    }
 
     loadFileInBlocks(argv[1]);
 

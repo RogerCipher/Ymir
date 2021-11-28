@@ -5,6 +5,8 @@
 
 #define UNIQUECHARVALUE 256 //used for an unique value of char
 
+#define DELETEDCHARVALUE 257 //used too replace a char value in the buffer that we deleted
+
 //a node that contains information about ranges and the next trieNode
 typedef struct st_RangeTrieNode
 {
@@ -30,6 +32,7 @@ typedef struct st_RangeTrieNode
     struct st_InternalTrieNode *prevInternalNode;
 }RangeNode;
 
+//a node that contains information about ranges
 typedef struct st_InternalTrieNode
 {
     //suffix link for Ukkonens algorithm
@@ -42,6 +45,19 @@ typedef struct st_InternalTrieNode
     RangeNode *prevRangeNode;
 
 }InternalNode;
+
+
+typedef struct st_patternChar
+{
+    int value;
+    struct st_patternChar *next;
+}PatternChar;
+
+typedef struct st_patternCharBlock
+{
+    PatternChar *pattern;
+    int weight; //number or repetitions of the pattern in the buffer
+}PatternCharBlock;
 
 
 void determineBestPatterns(int *buffer, int bufferLen);
