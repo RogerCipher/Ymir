@@ -14,7 +14,7 @@ by: Rogério Chaves (AKA CandyCrayon), 2021
 #include <string.h>
 #include "patterns.h"
 
-
+/*
 int suffixLength(RangeNode *range)
 {
 
@@ -26,7 +26,12 @@ int suffixLength(RangeNode *range)
 
     return myRangeLen;
 }
+*/
 
+int rangeLen(RangeNode *range)
+{
+    return *range->rangeEnd - range->rangeStart +1;
+}
 
 //this function returns the result of the heuristic of a suffix in our suffix tree
 int heuristicResult(RangeNode *range)
@@ -34,12 +39,12 @@ int heuristicResult(RangeNode *range)
     //the weight is how many times it repeats
     int weight = range->repeats;
     
-    int length = *range->rangeEnd - range->rangeStart +1;//suffixLength(range); //*range->rangeEnd - range->rangeStart +1;
+    int length = rangeLen(range);//suffixLength(range); //*range->rangeEnd - range->rangeStart +1;
 
     return weight * length;
 }
 
-//calculates and returns the best heuristic result node from a parent internal node
+//calculates and returns the best heuristic result node from a parent internal node (TODO: REWORK THIS, NOT WORKING AS EXPECTED)
 RangeNode *bestRangeNode(InternalNode *elem)
 {
     //se for o unico elemento
@@ -48,22 +53,62 @@ RangeNode *bestRangeNode(InternalNode *elem)
 
     //se nao:
     RangeNode *bestNode = elem->pathList;
-    RangeNode *iter = elem->pathList->sibling;
+    RangeNode *iter = elem->pathList;
     RangeNode *possiblyBetterNode = NULL;
     while (iter != NULL)
     {
-        if(iter->nextInternalNode != NULL)
-            possiblyBetterNode = bestRangeNode(iter->nextInternalNode);
-        else
-            possiblyBetterNode = iter;
-
-        if(heuristicResult(possiblyBetterNode) > heuristicResult(bestNode))
-            bestNode = possiblyBetterNode;
-
+        if(heuristicResult(iter) > heuristicResult(bestNode))
+            bestNode = iter;
+        //check childs
+        if(heuristicResult(bestRangeNode(iter->nextInternalNode)) > heuristicResult(bestNode))
+            bestNode = bestRangeNode(iter->nextInternalNode);
+        
         iter = iter->sibling;
     }
 
     return bestNode;
+}
+
+
+PatternCharBlock *bestCharBlock(InternalNode *root, int *buffer)
+{
+    //get the best pattern node:
+    RangeNode *bestNode = bestRangeNode(root);
+    RangeNode *iter = NULL;
+    PatternChar *lastPatternChar = NULL;
+
+    for(int i = 0; i < rangeLen(bestNode); i++)
+    {
+        PatternChar *nextPatternChar = (PatternChar *)malloc(sizeof(PatternChar));
+        nextPatternChar->value = buffer[*bestNode->rangeEnd -i];
+        nextPatternChar->next = lastPatternChar;
+        lastPatternChar = nextPatternChar;
+    }
+
+    iter = bestNode->prevInternalNode->prevRangeNode;
+    while (iter != NULL)
+    {
+        //check to see if it is a good node
+        if(rangeLen(bestNode) != rangeLen(iter))
+            break;
+
+        for(int i = 0; i < rangeLen(iter); i++)
+        {
+            PatternChar *nextPatternChar = (PatternChar *)malloc(sizeof(PatternChar));
+            nextPatternChar->value = buffer[*bestNode->rangeEnd -i];
+            nextPatternChar->next = lastPatternChar;
+            lastPatternChar = nextPatternChar;
+        }
+
+        //next good node
+        iter = iter->prevInternalNode->prevRangeNode;
+    }
+
+    PatternCharBlock *block = (PatternCharBlock *)malloc(sizeof(PatternCharBlock));
+    block->pattern = lastPatternChar;
+    block->weight = bestNode->repeats;
+
+    return block;
 }
 
 
@@ -409,7 +454,7 @@ void printSuffTree(InternalNode *elemento)
     
     while (iter != NULL)
     {
-        printf("\tn%p [label = \"[%d, %d] (%d, %d)\"]\n""", iter, iter->rangeStart, *iter->rangeEnd, iter->repeats , *iter->rangeEnd - iter->rangeStart +1);
+        printf("\tn%p [label = \"[%d, %d] (%d, %d)\"]\n""", iter, iter->rangeStart, *iter->rangeEnd, iter->repeats , rangeLen(iter));
         printf("\tn%p -- n%p\n", elemento, iter);
 
 
@@ -429,6 +474,20 @@ void printSuffTree(InternalNode *elemento)
         iter = iter->sibling;
     }
 
+}
+
+void printCharBlock(PatternCharBlock *block)
+{
+    PatternChar *iter = block->pattern;
+    printf("\npattern weight: %d", block->weight);
+    printf("\n---------------\n");
+    while (iter != NULL)
+    {
+        printf("%c", iter->value);
+
+        iter = iter->next;
+    }
+    printf("\n---------------");
 }
 
 //free the suffix tree (duuh)
@@ -496,6 +555,10 @@ void determineBestPatterns(int *buffer, int bufferLen)
     printf("\tnbestNode [label = \"bestNode\"]\n");
     printf("\tn%p -- nbestNode\n", bestRangeNode(root));
     printf("}\n");
+
+    printCharBlock(bestCharBlock(root, buffer));
+
+    
     //freeSuffTree(root);
 }
 
