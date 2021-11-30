@@ -18,8 +18,8 @@ typedef struct st_RangeTrieNode
     //for storing the length of the suffix
     int lenghtOfSuffix;
 
-    //storing how many times this range repeats
-    int repeats;
+    //storing how many times this range exists in buffer
+    int weight;
 
     //storing sibling of this range node
     struct st_RangeTrieNode *sibling;

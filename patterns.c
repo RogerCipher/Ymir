@@ -14,11 +14,18 @@ by: Rogério Chaves (AKA CandyCrayon), 2021
 #include <string.h>
 #include "patterns.h"
 
-/*
+
+//return a range length
+int rangeLen(RangeNode *range)
+{
+    return *range->rangeEnd - range->rangeStart +1;
+}
+
+//returns a range lenght from the root
 int suffixLength(RangeNode *range)
 {
 
-    int myRangeLen = *range->rangeEnd - range->rangeStart  +1;
+    int myRangeLen = rangeLen(range);
 
     //check to see if this range is conected to root
     if(range->prevInternalNode->prevRangeNode != NULL)
@@ -26,43 +33,41 @@ int suffixLength(RangeNode *range)
 
     return myRangeLen;
 }
-*/
 
-int rangeLen(RangeNode *range)
-{
-    return *range->rangeEnd - range->rangeStart +1;
-}
 
 //this function returns the result of the heuristic of a suffix in our suffix tree
 int heuristicResult(RangeNode *range)
-{
-    //the weight is how many times it repeats
-    int weight = range->repeats;
-    
-    int length = rangeLen(range);//suffixLength(range); //*range->rangeEnd - range->rangeStart +1;
+{   
+    int length = suffixLength(range);//suffixLength(range); //*range->rangeEnd - range->rangeStart +1;
 
-    return weight * length;
+    return (range->weight -1) * length;
 }
 
-//calculates and returns the best heuristic result node from a parent internal node (TODO: REWORK THIS, NOT WORKING AS EXPECTED)
+//calculates and returns the best heuristic result node from a parent internal node
 RangeNode *bestRangeNode(InternalNode *elem)
 {
-    //se for o unico elemento
+    //only range here
     if(elem->pathList->sibling == NULL)
         return elem->pathList;
 
-    //se nao:
+    //not the only range
     RangeNode *bestNode = elem->pathList;
     RangeNode *iter = elem->pathList;
     RangeNode *possiblyBetterNode = NULL;
     while (iter != NULL)
     {
+        // check the current node
         if(heuristicResult(iter) > heuristicResult(bestNode))
             bestNode = iter;
-        //check childs
-        if(heuristicResult(bestRangeNode(iter->nextInternalNode)) > heuristicResult(bestNode))
-            bestNode = bestRangeNode(iter->nextInternalNode);
-        
+
+        //check children
+        if(iter->nextInternalNode != NULL)
+        {
+            
+            possiblyBetterNode = bestRangeNode(iter->nextInternalNode);
+            if(heuristicResult(possiblyBetterNode) > heuristicResult(bestNode))
+                bestNode = possiblyBetterNode;
+        }
         iter = iter->sibling;
     }
 
@@ -74,9 +79,12 @@ PatternCharBlock *bestCharBlock(InternalNode *root, int *buffer)
 {
     //get the best pattern node:
     RangeNode *bestNode = bestRangeNode(root);
+
+    //buld the char pattern:
     RangeNode *iter = NULL;
     PatternChar *lastPatternChar = NULL;
 
+    //first the best range
     for(int i = 0; i < rangeLen(bestNode); i++)
     {
         PatternChar *nextPatternChar = (PatternChar *)malloc(sizeof(PatternChar));
@@ -85,32 +93,50 @@ PatternCharBlock *bestCharBlock(InternalNode *root, int *buffer)
         lastPatternChar = nextPatternChar;
     }
 
+    //now the rest of the ranges till we reach root
     iter = bestNode->prevInternalNode->prevRangeNode;
     while (iter != NULL)
     {
-        //check to see if it is a good node
-        if(rangeLen(bestNode) != rangeLen(iter))
-            break;
-
         for(int i = 0; i < rangeLen(iter); i++)
         {
             PatternChar *nextPatternChar = (PatternChar *)malloc(sizeof(PatternChar));
-            nextPatternChar->value = buffer[*bestNode->rangeEnd -i];
+            nextPatternChar->value = buffer[*iter->rangeEnd -i];
             nextPatternChar->next = lastPatternChar;
             lastPatternChar = nextPatternChar;
         }
 
-        //next good node
         iter = iter->prevInternalNode->prevRangeNode;
     }
 
+    //finally package it in a nice little block
     PatternCharBlock *block = (PatternCharBlock *)malloc(sizeof(PatternCharBlock));
     block->pattern = lastPatternChar;
-    block->weight = bestNode->repeats;
+    block->weight = bestNode->weight;
 
     return block;
 }
 
+//decreases repetitions of everyone above this node
+void decreaseRepetitions(RangeNode *range)
+{
+    range->weight--;
+    //decrement the repetitions of every range abouve this one:
+    if(range->prevInternalNode->prevRangeNode != NULL)
+            decreaseRepetitions(range->prevInternalNode->prevRangeNode);
+    
+    return;
+}
+
+//increases repetitions of everyone above this node
+void increaseRepetitions(RangeNode *range)
+{
+    range->weight++;
+    //decrement the repetitions of every range abouve this one:
+    if(range->prevInternalNode->prevRangeNode != NULL)
+            increaseRepetitions(range->prevInternalNode->prevRangeNode);
+    
+    return;
+}
 
 //removes the uniquechar we used to transform the suffix tree into a true suffix tree
 void removeUniqueChar(InternalNode *elem, int positionOfUniqueChar)
@@ -120,16 +146,20 @@ void removeUniqueChar(InternalNode *elem, int positionOfUniqueChar)
     while(iter != NULL)
     {
         next = iter->sibling;
+
         //do the same for all the below nodes
         if(iter->nextInternalNode != NULL)
             removeUniqueChar(iter->nextInternalNode, positionOfUniqueChar);
 
-        //check to see if this range has the unique char
+
+        //check to see if this range has the unique char (it will be at the end for sure)
         if(*iter->rangeEnd == positionOfUniqueChar)
         {
-            
             if(iter->rangeStart == *iter->rangeEnd)
-            {   
+            {
+
+                //decreaseRepetitions(iter);
+
                 //remove it from the pathlist of the internal node:
                 RangeNode *iterFinder = elem->pathList;
                 while (iterFinder->sibling != iter && iterFinder != NULL)
@@ -189,13 +219,13 @@ InternalNode *createSuffixTree(int *buffer, int bufferLen)
                 {
                     if(buffer[iterRangeNode->rangeStart] == buffer[i])
                     {
-                        //found it, lets increase our active Length and repeats
+                        //found it, lets increase our active Length and weight
                         activeLength++;
                         activeEdge = iterRangeNode->rangeStart;
 
                         //this node is repeated
-                        iterRangeNode->repeats++;
-
+                        //iterRangeNode->weight++;
+                        //increaseRepetitions(iterRangeNode);
                         //this is a show stopper btw
                         found = 1;
                         break;
@@ -214,7 +244,7 @@ InternalNode *createSuffixTree(int *buffer, int bufferLen)
                 newRangeNode->nextInternalNode = NULL;
                 newRangeNode->rangeStart = i;
                 newRangeNode->rangeEnd = end;
-                newRangeNode->repeats = 0;
+                newRangeNode->weight = 0;
                 newRangeNode->sibling = NULL;
                 newRangeNode->prevInternalNode = activeNode;
                 //and now we add it to the end of the range list of the activeNode:
@@ -278,7 +308,6 @@ InternalNode *createSuffixTree(int *buffer, int bufferLen)
                     activeEdge += activeLength;
                     activeLength = 0;
 
-
                 }
                 //then we check if we are going to jump further than the next node:
                 else if(activeLength > (*iterRangeNode->rangeEnd - iterRangeNode->rangeStart +1))
@@ -290,10 +319,9 @@ InternalNode *createSuffixTree(int *buffer, int bufferLen)
                         exit(1);
                     }
                     activeNode = iterRangeNode->nextInternalNode;
-                    activeNode->pathList->repeats++;
+                    //activeNode->pathList->weight++;
                     activeEdge += activeLength;
                     activeLength = activeLength - (*iterRangeNode->rangeEnd - iterRangeNode->rangeStart +1);
-
                 }
                 else
                 {   
@@ -318,6 +346,10 @@ InternalNode *createSuffixTree(int *buffer, int bufferLen)
                             prevCreatedNode->suffixLink = newInternalNode;
                         prevCreatedNode = newInternalNode;
 
+
+                       
+
+
                         //now we will cut every range in the current range nodes range list
                         //at the same time we create the new range for the new internalNode Ranges:
 
@@ -340,7 +372,7 @@ InternalNode *createSuffixTree(int *buffer, int bufferLen)
                         iterRangeNode->rangeEnd = thisRangeEnd;
 
 
-                        newRangeNode->repeats = iterRangeNode->repeats -1;
+                        newRangeNode->weight = iterRangeNode->weight -1;
                         newRangeNode->sibling = NULL;
                         newInternalNode->pathList = newRangeNode;
 
@@ -350,7 +382,7 @@ InternalNode *createSuffixTree(int *buffer, int bufferLen)
                         //create the node for the ranges we just split above:
                         RangeNode *newSplitRangeNode = (RangeNode *)malloc(sizeof(RangeNode));
                         newSplitRangeNode->nextInternalNode = NULL;
-                        newSplitRangeNode->repeats = 0;
+                        newSplitRangeNode->weight = 0;
                         newSplitRangeNode->sibling = NULL;
                         newSplitRangeNode->rangeStart = i;
                         newSplitRangeNode->rangeEnd = end;
@@ -368,12 +400,14 @@ InternalNode *createSuffixTree(int *buffer, int bufferLen)
                         remaining --;
                         if(activeNode == root)
                         {
+                            
                             activeEdge++;
                             activeLength--;
                             
                         }
                         else
                         {
+                            
                             activeNode = activeNode->suffixLink;
                         }
                     }
@@ -389,24 +423,29 @@ InternalNode *createSuffixTree(int *buffer, int bufferLen)
 int repetitionsOfRange(RangeNode *elem)
 {
     //initialization
-    elem->repeats = 0;
-    //if we dont have a nextInternalNode our number of
-    //repetitions is 0 (this sub string occurs 1 time only)
-    if(elem->nextInternalNode == NULL)
-        return 0;
+    elem->weight = 0;
 
-    //if not we know this ranges repetition is equal to the number of 
-    //internal nodes it has
-    RangeNode *iter = elem->nextInternalNode->pathList;
-    elem->repeats = -1;
-    while (iter != NULL)
+    //if we dont have a nextInternalNode our number of repetitions is 0 (it appears 1 time)
+    //if it does we know the ammount of repetitions is the amount of range nodes in the nextInternalNodes of this range
+    if(elem->nextInternalNode != NULL)
     {
-        elem->repeats += repetitionsOfRange(iter) +1;
-        iter = iter->sibling;
-    }
+        
+        //count the number of repetitions
+        RangeNode *iter = elem->nextInternalNode->pathList;
+        while (iter != NULL)
+        {
+            //count our repetitions
+            elem->weight += repetitionsOfRange(iter);
 
+            iter = iter->sibling;
+        }
+    }
+    else
+    {
+        elem->weight = 1;
+    }
     
-    return elem->repeats;
+    return elem->weight;
 }
 
 //this removes a certain pattern from a buffer, this could be faster (see KMP substring search : https://www.youtube.com/watch?v=GTJr8OvyEVQ)
@@ -454,7 +493,7 @@ void printSuffTree(InternalNode *elemento)
     
     while (iter != NULL)
     {
-        printf("\tn%p [label = \"[%d, %d] (%d, %d)\"]\n""", iter, iter->rangeStart, *iter->rangeEnd, iter->repeats , rangeLen(iter));
+        printf("\tn%p [label = \"[%d, %d] (%d, %d)\"]\n""", iter, iter->rangeStart, *iter->rangeEnd, iter->weight , suffixLength(iter));
         printf("\tn%p -- n%p\n", elemento, iter);
 
 
@@ -539,7 +578,9 @@ void determineBestPatterns(int *buffer, int bufferLen)
 
     InternalNode *root = createSuffixTree(buffer, bufferLen+1);
 
+    //we then count the repetitions of each node
     fillRepetitionsInTree(root);
+
 
     //finally we will remove the unique char value that transformed the tree into a 
     //true suffix tree
