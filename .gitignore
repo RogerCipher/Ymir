@@ -6,3 +6,4 @@ Ulysses
 cmake-build-debug/*
 testHuff.txt
 huffTest
+-Wall

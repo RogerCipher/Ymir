@@ -14,463 +14,238 @@ by: Rogério Chaves (AKA CandyCrayon), 2021
 #include <string.h>
 #include "patterns.h"
 
-
-//return a range length
-int rangeLen(RangeNode *range)
+//simple error throwing function
+void error(const char *msg) 
 {
-    return *range->rangeEnd - range->rangeStart +1;
+    perror(msg);
+    exit(1);
 }
 
-//returns a range lenght from the root
-int suffixLength(RangeNode *range)
-{
-
-    int myRangeLen = rangeLen(range);
-
-    //check to see if this range is conected to root
-    if(range->prevInternalNode->prevRangeNode != NULL)
-        myRangeLen += suffixLength(range->prevInternalNode->prevRangeNode);
-
-    return myRangeLen;
-}
-
-
-//this function returns the result of the heuristic of a suffix in our suffix tree
-int heuristicResult(RangeNode *range)
+//this function returns the result of the heuristic of a node in the trie
+int heuristicResult(TrieNode *node)
 {   
-    int length = suffixLength(range);//suffixLength(range); //*range->rangeEnd - range->rangeStart +1;
-
-    return (range->weight -1) * length;
+    if(node->weight == 1)
+        return 0;
+    return node->weight * node->depth;
 }
 
-//calculates and returns the best heuristic result node from a parent internal node
-RangeNode *bestRangeNode(InternalNode *elem)
+TrieNode *bestNodeInTrie(TrieNode *node)
 {
-    //only range here
-    if(elem->pathList->sibling == NULL)
-        return elem->pathList;
+    TrieNode *bestNode = node;
+    TrieNode *possibleBetterNode = NULL;
 
-    //not the only range
-    RangeNode *bestNode = elem->pathList;
-    RangeNode *iter = elem->pathList;
-    RangeNode *possiblyBetterNode = NULL;
-    while (iter != NULL)
+    TrieNode *iter = NULL;
+    if(node->childList != NULL)
     {
-        // check the current node
-        if(heuristicResult(iter) > heuristicResult(bestNode))
-            bestNode = iter;
-
-        //check children
-        if(iter->nextInternalNode != NULL)
+        iter = node->childList;
+        while(iter != NULL)
         {
-            
-            possiblyBetterNode = bestRangeNode(iter->nextInternalNode);
-            if(heuristicResult(possiblyBetterNode) > heuristicResult(bestNode))
-                bestNode = possiblyBetterNode;
-        }
-        iter = iter->sibling;
+            possibleBetterNode = bestNodeInTrie(iter);
+            if(heuristicResult(possibleBetterNode) > heuristicResult(bestNode))
+                bestNode = possibleBetterNode;
+
+            iter = iter->next;
+        }   
     }
 
     return bestNode;
 }
 
-
-PatternCharBlock *bestCharBlock(InternalNode *root, int *buffer)
+TrieNode *bestNodeInForest(TrieManager *manager)
 {
-    //get the best pattern node:
-    RangeNode *bestNode = bestRangeNode(root);
+    TrieNode *iter = NULL;
 
-    //buld the char pattern:
-    RangeNode *iter = NULL;
-    PatternChar *lastPatternChar = NULL;
 
-    //first the best range
-    for(int i = 0; i < rangeLen(bestNode); i++)
+    //first reset all tries:
+    for(int i = 0; i < MAXUNIQUECHARS; i++)
     {
-        PatternChar *nextPatternChar = (PatternChar *)malloc(sizeof(PatternChar));
-        nextPatternChar->value = buffer[*bestNode->rangeEnd -i];
-        nextPatternChar->next = lastPatternChar;
-        lastPatternChar = nextPatternChar;
+        //nothing there
+        if(manager->trie[i] == NULL)
+            continue;
+
+        //reset this trie
+        iter = manager->trie[i];
+        while (iter->parent != NULL)
+            iter = iter->parent;
+
+        manager->trie[i] = iter;
     }
 
-    //now the rest of the ranges till we reach root
-    iter = bestNode->prevInternalNode->prevRangeNode;
+    TrieNode *bestNode = NULL;
+    //set the best node to the first node we see
+    for(int i = 0; i < MAXUNIQUECHARS; i++)
+    {
+        //nothing there
+        if(manager->trie[i] == NULL)
+            continue;
+
+        bestNode = bestNodeInTrie(manager->trie[i]);
+    }
+
+    TrieNode *possibleBetterNode = NULL;
+    for(int i = 0; i < MAXUNIQUECHARS; i++)
+    {
+        //nothing there
+        if(manager->trie[i] == NULL)
+            continue;
+
+        possibleBetterNode = bestNodeInTrie(manager->trie[i]);
+        if(heuristicResult(bestNode) < heuristicResult(possibleBetterNode))
+            bestNode = possibleBetterNode;
+    }
+    
+    return bestNode;
+}
+
+TrieNode *makeRoot(int value)
+{
+    //there's no child with this value, so lets create it
+    TrieNode *newRoot = (TrieNode *)malloc(sizeof(TrieNode));
+    //error handling
+    if(newRoot == NULL)
+        error("couldnt alocate memory\n");
+
+    newRoot->parent = NULL;
+    newRoot->depth = 0;
+    newRoot->childList = NULL;
+    newRoot->next = NULL;
+    newRoot->value = value;
+    newRoot->weight = 1;
+
+    return newRoot;
+}
+
+TrieNode *addChild(TrieNode *parent, int value)
+{
+    //first lets check if there is a child with this value already:
+    TrieNode *iter = parent->childList;
     while (iter != NULL)
     {
-        for(int i = 0; i < rangeLen(iter); i++)
+        if(iter->value == value)
         {
-            PatternChar *nextPatternChar = (PatternChar *)malloc(sizeof(PatternChar));
-            nextPatternChar->value = buffer[*iter->rangeEnd -i];
-            nextPatternChar->next = lastPatternChar;
-            lastPatternChar = nextPatternChar;
+            //there's already a child with this value
+            iter->weight++;
+            return iter;
         }
-
-        iter = iter->prevInternalNode->prevRangeNode;
+        iter = iter->next;
     }
-
-    //finally package it in a nice little block
-    PatternCharBlock *block = (PatternCharBlock *)malloc(sizeof(PatternCharBlock));
-    block->pattern = lastPatternChar;
-    block->weight = bestNode->weight;
-
-    return block;
-}
-
-//decreases repetitions of everyone above this node
-void decreaseRepetitions(RangeNode *range)
-{
-    range->weight--;
-    //decrement the repetitions of every range abouve this one:
-    if(range->prevInternalNode->prevRangeNode != NULL)
-            decreaseRepetitions(range->prevInternalNode->prevRangeNode);
     
-    return;
-}
+    //there's no child with this value, so lets create it
+    TrieNode *newChild = (TrieNode *)malloc(sizeof(TrieNode));
+    //error handling
+    if(newChild == NULL)
+        error("couldnt alocate memory\n");
 
-//increases repetitions of everyone above this node
-void increaseRepetitions(RangeNode *range)
-{
-    range->weight++;
-    //decrement the repetitions of every range abouve this one:
-    if(range->prevInternalNode->prevRangeNode != NULL)
-            increaseRepetitions(range->prevInternalNode->prevRangeNode);
-    
-    return;
-}
+    newChild->parent = parent;
+    newChild->depth = parent->depth+1;
+    newChild->childList = NULL;
+    newChild->next = NULL;
+    newChild->value = value;
+    newChild->weight = 1;
 
-//removes the uniquechar we used to transform the suffix tree into a true suffix tree
-void removeUniqueChar(InternalNode *elem, int positionOfUniqueChar)
-{
-    RangeNode *iter = elem->pathList;
-    RangeNode *next;
-    while(iter != NULL)
-    {
-        next = iter->sibling;
-
-        //do the same for all the below nodes
-        if(iter->nextInternalNode != NULL)
-            removeUniqueChar(iter->nextInternalNode, positionOfUniqueChar);
-
-
-        //check to see if this range has the unique char (it will be at the end for sure)
-        if(*iter->rangeEnd == positionOfUniqueChar)
-        {
-            if(iter->rangeStart == *iter->rangeEnd)
-            {
-
-                //decreaseRepetitions(iter);
-
-                //remove it from the pathlist of the internal node:
-                RangeNode *iterFinder = elem->pathList;
-                while (iterFinder->sibling != iter && iterFinder != NULL)
-                    iterFinder = iterFinder->sibling;
-
-                free(iter);
-                iter = NULL;
-                iterFinder->sibling = NULL;
-            }
-            else
-            {
-                //its a range with the unique char in the end,
-                //so we just remove the unique char:
-                int *newEnd = (int *)malloc(sizeof(int));
-                *newEnd = positionOfUniqueChar -1;
-                iter->rangeEnd = newEnd;
-            }
-
-        }
-        iter = next;
-    }
-}
-
-
-InternalNode *createSuffixTree(int *buffer, int bufferLen)
-{
-    InternalNode *root = (InternalNode *)malloc(sizeof(InternalNode));
-
-    root->prevRangeNode = NULL;
-
-    //Ukkonens algorithm
-    int remaining = 0;
-    InternalNode *activeNode = root;
-    int activeEdge = -1;
-    int activeLength = 0;
-    int *end = (int *)malloc(sizeof(int));
-    *end = -1;
-
-    int found = 0;
-    InternalNode *prevCreatedNode;
-    //InternalNode *iterInternalNode;
-    RangeNode *iterRangeNode;
-    for(int i = 0; i < bufferLen; i++)
-    {
-        prevCreatedNode = root;
-        remaining++;
-        (*end)++;
-        while(remaining > 0)
-        {
-            if(activeLength == 0)
-            {
-                //we are on top of a node, lets see if he has any ranges
-                //attached to it that correspond to the current value we want
-                iterRangeNode = activeNode->pathList;
-                found = 0;
-                while(iterRangeNode != NULL)
-                {
-                    if(buffer[iterRangeNode->rangeStart] == buffer[i])
-                    {
-                        //found it, lets increase our active Length and weight
-                        activeLength++;
-                        activeEdge = iterRangeNode->rangeStart;
-
-                        //this node is repeated
-                        //iterRangeNode->weight++;
-                        //increaseRepetitions(iterRangeNode);
-                        //this is a show stopper btw
-                        found = 1;
-                        break;
-                    }
-
-                    iterRangeNode = iterRangeNode->sibling;
-                }
-
-                //show stopper
-                if(found)
-                    break;
-
-                //didnt find it
-                //we are going to have to create a node with this value:
-                RangeNode *newRangeNode =  (RangeNode *)malloc(sizeof(RangeNode));
-                newRangeNode->nextInternalNode = NULL;
-                newRangeNode->rangeStart = i;
-                newRangeNode->rangeEnd = end;
-                newRangeNode->weight = 0;
-                newRangeNode->sibling = NULL;
-                newRangeNode->prevInternalNode = activeNode;
-                //and now we add it to the end of the range list of the activeNode:
-                if(activeNode->pathList == NULL)
-                {
-                    //first element:
-                    activeNode->pathList = newRangeNode;
-                    remaining--;
-                }
-                else
-                {
-                    //not the first element, lets put it in the end
-                    //of the range Node list
-                    iterRangeNode = activeNode->pathList;
-                    while (iterRangeNode->sibling != NULL)
-                        iterRangeNode = iterRangeNode->sibling;
-
-                    iterRangeNode->sibling = newRangeNode;
-                    remaining--;
-                }
-            }
-            else
-            {
-                //we have to find our active point,
-                //we do this by going from activeNode in the direction of activeEdge
-                //and we walk the ammount of activeLength
-                iterRangeNode = activeNode->pathList;
-
-                found = 0;
-                while (iterRangeNode != NULL)
-                {
-                    if(buffer[iterRangeNode->rangeStart] == buffer[activeEdge])
-                    {
-                        //we have found the range node we want to travel in
-                        found = 1;
-                        break;
-                    }
-                    iterRangeNode = iterRangeNode->sibling;
-                }
-                if(!found)
-                {
-                    //we havent found the range node we want to travel in, something is very wrong
-                    printf("fds\n");
-                    exit(1);
-                }
-            
-
-                //first of all, we check to see if this is going to make us jump to the top of a node:
-                if(activeLength == (*iterRangeNode->rangeEnd - iterRangeNode->rangeStart +1))
-                {
-                    //we do! so all we have to do is change the active node the jumped node
-                    //and change the activeLenght to 0 and let the code handle it:
-                    if(iterRangeNode->nextInternalNode == NULL)
-                    {
-                        printSuffTree(root);
-                        printf("1\n");
-                        exit(1);
-                    }
-
-                    activeNode = iterRangeNode->nextInternalNode;
-                    activeEdge += activeLength;
-                    activeLength = 0;
-
-                }
-                //then we check if we are going to jump further than the next node:
-                else if(activeLength > (*iterRangeNode->rangeEnd - iterRangeNode->rangeStart +1))
-                {
-                    //oh no, we have to jump not only the node but we dont know where we are going after, wish us luck
-                    if(iterRangeNode->nextInternalNode == NULL)
-                    {
-                        printf("2\n");
-                        exit(1);
-                    }
-                    activeNode = iterRangeNode->nextInternalNode;
-                    //activeNode->pathList->weight++;
-                    activeEdge += activeLength;
-                    activeLength = activeLength - (*iterRangeNode->rangeEnd - iterRangeNode->rangeStart +1);
-                }
-                else
-                {   
-                    //yey we dont have to jump anything! so first we see if the next value
-                    //is the value that we want:
-                    if(buffer[iterRangeNode->rangeStart+activeLength] == buffer[i])
-                    {
-                        //it is! nice, we just add to active lenght
-                        activeLength++;
-                        break;
-                    }
-                    else
-                    {
-
-                        //we need to split this here, so:
-                        //create an internal node:
-                        InternalNode *newInternalNode = (InternalNode *)malloc(sizeof(InternalNode));
-                        
-                        //handle the suffix links
-                        newInternalNode->suffixLink = root;
-                        if(prevCreatedNode != root)
-                            prevCreatedNode->suffixLink = newInternalNode;
-                        prevCreatedNode = newInternalNode;
-
-
-                       
-
-
-                        //now we will cut every range in the current range nodes range list
-                        //at the same time we create the new range for the new internalNode Ranges:
-
-                        //cut the old range
-                        int *thisRangeEnd = (int *)malloc(sizeof(int));
-                        *thisRangeEnd = iterRangeNode->rangeStart + activeLength -1;
-                        
-                        newInternalNode->prevRangeNode = iterRangeNode;
-
-                        //finally we just need the RangeNode to add here with the new range list:
-                        RangeNode *newRangeNode = (RangeNode *)malloc(sizeof(RangeNode));
-                        //connect the next internal node like it was before
-                        newRangeNode->nextInternalNode = iterRangeNode->nextInternalNode;
-                        newRangeNode->rangeStart = iterRangeNode->rangeStart + activeLength;
-                        newRangeNode->rangeEnd = iterRangeNode->rangeEnd;
-                        newRangeNode->prevInternalNode = newInternalNode;
-
-                        //and update it
-                        //update old ranges end
-                        iterRangeNode->rangeEnd = thisRangeEnd;
-
-
-                        newRangeNode->weight = iterRangeNode->weight -1;
-                        newRangeNode->sibling = NULL;
-                        newInternalNode->pathList = newRangeNode;
-
-                        //now we can put this internal node where it should be
-                        iterRangeNode->nextInternalNode = newInternalNode;
-
-                        //create the node for the ranges we just split above:
-                        RangeNode *newSplitRangeNode = (RangeNode *)malloc(sizeof(RangeNode));
-                        newSplitRangeNode->nextInternalNode = NULL;
-                        newSplitRangeNode->weight = 0;
-                        newSplitRangeNode->sibling = NULL;
-                        newSplitRangeNode->rangeStart = i;
-                        newSplitRangeNode->rangeEnd = end;
-                        newSplitRangeNode->prevInternalNode = newInternalNode;
-
-                        //add it to the ranges of the internal node we created
-                        newRangeNode->sibling = newSplitRangeNode;
-
-                        //we are done, now we just continue the ukkonens:
-                        if(newInternalNode == NULL)
-                        {
-                            printf("3\n");
-                            exit(1);
-                        }
-                        remaining --;
-                        if(activeNode == root)
-                        {
-                            
-                            activeEdge++;
-                            activeLength--;
-                            
-                        }
-                        else
-                        {
-                            
-                            activeNode = activeNode->suffixLink;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    return root;
-}
-
-//recursivly count the number of repetitions in a range
-int repetitionsOfRange(RangeNode *elem)
-{
-    //initialization
-    elem->weight = 0;
-
-    //if we dont have a nextInternalNode our number of repetitions is 0 (it appears 1 time)
-    //if it does we know the ammount of repetitions is the amount of range nodes in the nextInternalNodes of this range
-    if(elem->nextInternalNode != NULL)
-    {
-        
-        //count the number of repetitions
-        RangeNode *iter = elem->nextInternalNode->pathList;
-        while (iter != NULL)
-        {
-            //count our repetitions
-            elem->weight += repetitionsOfRange(iter);
-
-            iter = iter->sibling;
-        }
-    }
+    //if its the first child we just put it in:
+    if(parent->childList == NULL)
+        parent->childList = newChild;
     else
     {
-        elem->weight = 1;
+        //not the first child,
+        //walk to the end of the list:
+        TrieNode *iter = parent->childList;
+        while (iter->next != NULL)
+            iter = iter->next;
+
+        //add it to the end of the list:
+        iter->next = newChild;
     }
-    
-    return elem->weight;
+        return newChild;
 }
 
-//this removes a certain pattern from a buffer, this could be faster (see KMP substring search : https://www.youtube.com/watch?v=GTJr8OvyEVQ)
-int removeCharSetFromBuffer(int *buffer, int bufferLen)
+TrieManager *createPatternTrie(int *buffer, int bufferLen)
 {
+    TrieManager *manager = (TrieManager *)malloc(sizeof(TrieManager));
+    //initialization
+    for(int i = 0; i < MAXUNIQUECHARS; i++)
+        manager->trie[i] = NULL;
 
-    return 1;
-}
+    TrieNode *iter = NULL;
 
-//count the number of repetitions of each range of the suffix tree
-void fillRepetitionsInTree(InternalNode *root)
-{
-    //we will just fill every range in root (recursively) with
-    //the correct repetitions
-    RangeNode *iter = root->pathList;
-    while (iter != NULL)
+
+    for(int i = 0; i < bufferLen; i++)
     {
-        repetitionsOfRange(iter);
-        iter = iter->sibling;
+        //if there's no pattern starting with this value we create it:
+        if(manager->trie[buffer[i]] == NULL)
+            manager->trie[buffer[i]] = makeRoot(buffer[i]);
+        else
+        {
+            //there's a pattern starting with this value, so lets:
+            //navigate untill the root:
+            iter = manager->trie[buffer[i]];
+            while (iter->parent != NULL)
+                iter = iter->parent;
+
+            //increment its weight
+            iter->weight++;
+            
+            //finally set it as current node for this trie
+            manager->trie[buffer[i]] = iter;
+        }
+
+        //now lets check all other tries:
+        for(int k = 0; k < MAXUNIQUECHARS; k++)
+        {
+            //if we are in the trie starting by this value we just skip it
+            if(k == buffer[i])
+                continue;
+
+            //if there's already a trie there we add this new child:
+            if(manager->trie[k] != NULL)
+                manager->trie[k] = addChild(manager->trie[k], buffer[i]);
+        }
+
     }
-    return;
+
+    return manager;
 }
+
+/*
+void deleteOneWeight(TrieManager *manager)
+{
+
+    TrieNode *iter = NULL;
+    //first reset all tries:
+    for(int i = 0; i < MAXUNIQUECHARS; i++)
+    {
+        //nothing there
+        if(manager->trie[i] == NULL)
+            continue;
+
+        //reset this trie
+        iter = manager->trie[i];
+        while (iter->parent != NULL)
+            iter = iter->parent;
+
+        manager->trie[i] = iter;
+    }
+
+    //then cut down everything after
+    for(int i = 0; i < MAXUNIQUECHARS; i++)
+    {
+        //nothing there
+        if(manager->trie[i] == NULL)
+            continue;
+
+        if()
+        while (iter->parent != NULL)
+            iter = iter->parent;
+
+        manager->trie[i] = iter;
+    }
+}
+*/
+
 
 //simple print for graphviz
-void printSuffTree(InternalNode *elemento)
+void printTrie(TrieNode *node)
 {
     /*
     if (elemento->suffixLink == NULL) 
@@ -480,130 +255,114 @@ void printSuffTree(InternalNode *elemento)
         printf("graph {\n");
     }
     */
-    if (elemento->suffixLink != NULL)
-        printf("\tn%p -- n%p\n", elemento, elemento->suffixLink);
+    if (node->parent != NULL)
+        printf("\tn%p -- n%p\n", node, node->parent);
 
-    /*
-    if(elemento->prevRangeNode != NULL)
-        printf("\tn%p -- n%p\n", elemento, elemento->prevRangeNode);
-    */
-
-    RangeNode *iter = elemento->pathList;
-    printf("\tn%p [label = \"Node\"]\n", elemento);
+    TrieNode *iter = node->childList;
+    printf("\tn%p [label = \"val: %c, weig: %d\"]\n", node, node->value, node->weight);
     
     while (iter != NULL)
     {
-        printf("\tn%p [label = \"[%d, %d] (%d, %d)\"]\n""", iter, iter->rangeStart, *iter->rangeEnd, iter->weight , suffixLength(iter));
-        printf("\tn%p -- n%p\n", elemento, iter);
-
-
-        /*
-        if(iter->prevInternalNode != NULL)
-        {
-            printf("\tn%p -- n%p\n", iter, iter->prevInternalNode);
-        }
-        */
-
-
-        if(iter->nextInternalNode != NULL)
-        {
-            printf("\tn%p -- n%p\n", iter, iter->nextInternalNode);
-            printSuffTree(iter->nextInternalNode);
-        }
-        iter = iter->sibling;
-    }
-
-}
-
-void printCharBlock(PatternCharBlock *block)
-{
-    PatternChar *iter = block->pattern;
-    printf("\npattern weight: %d", block->weight);
-    printf("\n---------------\n");
-    while (iter != NULL)
-    {
-        printf("%c", iter->value);
+        printTrie(iter);
 
         iter = iter->next;
     }
-    printf("\n---------------");
 }
 
-//free the suffix tree (duuh)
-int freeSuffTree(InternalNode *elem)
+void printAllTries(TrieManager *manager)
 {
-    if(elem->pathList != NULL)
+    TrieNode *iter = NULL;
+
+
+    //first reset all tries:
+    for(int i = 0; i < MAXUNIQUECHARS; i++)
     {
-        RangeNode *iter = elem->pathList;
-        RangeNode *next;
-        while (iter != NULL)
-        {
-            if(iter->nextInternalNode != NULL)
-                freeSuffTree(iter->nextInternalNode);
+        //nothing there
+        if(manager->trie[i] == NULL)
+            continue;
 
-            if(iter->rangeEnd != NULL)
-            {
-                free(iter->rangeEnd);
-                iter->rangeEnd = NULL;
-            }
-            
-            next = iter->sibling;
-            free(iter);
-            iter = NULL;
+        //reset this trie
+        iter = manager->trie[i];
+        while (iter->parent != NULL)
+            iter = iter->parent;
 
-            iter = next;
-        }
-        
+        manager->trie[i] = iter;
     }
-    free(elem);
-    elem = NULL;
-    return 1;
-}
-
-void determineBestPatterns(int *buffer, int bufferLen)
-{
-    if(bufferLen > MAXCHARBUFFER -2)
-    {
-        printf("I want a blank space in the buffer so I can put in the unique var, ty very much\n");
-        exit(1);
-    }
-    printf("bufferLen: %d", bufferLen);
-    buffer[bufferLen] = UNIQUECHARVALUE;
-    printf("\n");
-    for(int i = 0; i < bufferLen+1; i++)
-    {
-        printf("%d ", buffer[i]);
-    }
-    printf("\n ------ %d", bufferLen);
-
-    InternalNode *root = createSuffixTree(buffer, bufferLen+1);
-
-    //we then count the repetitions of each node
-    fillRepetitionsInTree(root);
-
-
-    //finally we will remove the unique char value that transformed the tree into a 
-    //true suffix tree
-    removeUniqueChar(root, bufferLen);
-
-
-
-
-
     printf("Copy the following code to https://dreampuf.github.io/GraphvizOnline\n");
     printf("graph {\n");
-    printSuffTree(root);
-    printf("\tnbestNode [label = \"bestNode\"]\n");
-    printf("\tn%p -- nbestNode\n", bestRangeNode(root));
+
+
+    printf("\to726f676572 [label = \"MANAGER\"]\n");
+    //print them
+    for(int i = 0; i < MAXUNIQUECHARS; i++)
+    {
+        if(manager->trie[i] == NULL)
+            continue;
+        
+        
+        printTrie(manager->trie[i]);
+        printf("\tn%p -- o726f676572\n", manager->trie[i]);
+    }
+
+    printf("\tbestNode [label = \"BEST NODE I FOUND CHIEF\"]\n");
+    printf("\tn%p -- bestNode\n", bestNodeInForest(manager));
+
     printf("}\n");
-
-    printCharBlock(bestCharBlock(root, buffer));
-
-    
-    //freeSuffTree(root);
 }
 
-#if 0
+
+void freeTrie(TrieNode *node)
+{
+    if(node->childList != NULL)
+    {
+        TrieNode *iter = node->childList;
+        TrieNode *next = iter->next;
+        while (iter != NULL)
+        {
+            if(iter->childList != NULL)
+                freeTrie(iter);
+            else
+                free(iter);
+
+            iter = NULL;
+            iter = next;
+        }
+    }
+    free(node);
+}
+
+void freeAllTries(TrieManager *manager)
+{
+    TrieNode *iter = NULL;
+
+    //first reset all tries:
+    for(int i = 0; i < MAXUNIQUECHARS; i++)
+    {
+        //nothing there
+        if(manager->trie[i] == NULL)
+            continue;
+
+        //reset this trie
+        iter = manager->trie[i];
+        while (iter->parent != NULL)
+            iter = iter->parent;
+
+        manager->trie[i] = iter;
+    }
+
+    //now free
+    for(int i = 0; i < MAXUNIQUECHARS; i++)
+    {
+        //nothing there
+        if(manager->trie[i] == NULL)
+            continue;
+
+        freeTrie(manager->trie[i]);
+        manager->trie[i] = NULL;
+    }
+    free(manager);
+}
+
 /*--------------- main -------------*/
 int main(int argc, char *argv[])
 {
@@ -624,24 +383,22 @@ int main(int argc, char *argv[])
     printFilePatterns(patterns);
     #endif
     
-    int testBuffer[15] = {(int)'x', (int)'y', (int)'z', (int)'x', (int)'y', (int)'a', (int)'x', (int)'y', (int)'z', (int)'x', (int)'y', (int)'z', (int)'x', (int)'y', (int)'z'};
-    //int testBuffer[8] = {(int)'m', (int)'i', (int)'s', (int)'s', (int)'i', (int)'s', (int)'s', (int)'i'};
+    //int testBuffer[15] = {(int)'x', (int)'y', (int)'z', (int)'x', (int)'y', (int)'a', (int)'x', (int)'y', (int)'z', (int)'x', (int)'y', (int)'z', (int)'x', (int)'y', (int)'z'};
+    int testBuffer[8] = {(int)'m', (int)'i', (int)'s', (int)'s', (int)'i', (int)'s', (int)'s', (int)'i'};
     
     
-    determineBestPatterns(testBuffer, 15);
-    
+    TrieManager *man = createPatternTrie(testBuffer, 8);
+    printAllTries(man);
     /*
     
     InternalNode *root = createWeightedSuffixTree(testBuffer, 10);
 
     fillRepetitionsInTree(root);
 
-    printf("Copy the following code to https://dreampuf.github.io/GraphvizOnline\n");
-    printf("graph {\n");
+
     printSuffTree(root);
-    printf("}\n");
+
     */
 
     return 1;
 }
-#endif

@@ -3,49 +3,37 @@
 
 #define MAXCHARBUFFER 64001 //the file will be read in these blocks of space (in bytes)
 
+#define MAXUNIQUECHARS 256
+
 #define UNIQUECHARVALUE 256 //used for an unique value of char
 
 #define DELETEDCHARVALUE 257 //used too replace a char value in the buffer that we deleted
 
-//a node that contains information about ranges and the next trieNode
-typedef struct st_RangeTrieNode
+typedef struct st_trieNode
 {
-    //storing the range of this node
-    int rangeStart;
-    int *rangeEnd;
+    struct st_trieNode *parent;
+    struct st_trieNode *next;
+    struct st_trieNode *childList;
 
+    //the char value of the node
+    int value;
 
-    //for storing the length of the suffix
-    int lenghtOfSuffix;
-
-    //storing how many times this range exists in buffer
+    //the ammounts of times this char was found
     int weight;
 
-    //storing sibling of this range node
-    struct st_RangeTrieNode *sibling;
+    //the length of the pattern untill this char
+    int depth;
 
-    //storing next internal node if there is one
-    struct st_InternalTrieNode *nextInternalNode;
+}TrieNode;
 
-    //storing the previous node se we can determine 
-    //the suffix length after
-    struct st_InternalTrieNode *prevInternalNode;
-}RangeNode;
-
-//a node that contains information about ranges
-typedef struct st_InternalTrieNode
+typedef struct st_trieManager
 {
-    //suffix link for Ukkonens algorithm
-    struct st_InternalTrieNode *suffixLink;
-    //pointer to ranges that emerge from this node
-    RangeNode *pathList;
+    //information about the 256 (possible) trie trees, 
+    //stores the address of the current node we will inser to
+    struct st_trieNode *trie[256];
 
-    //storing the previous range so we can calculate 
-    //suffix length after
-    RangeNode *prevRangeNode;
 
-}InternalNode;
-
+}TrieManager;
 
 typedef struct st_patternChar
 {
@@ -60,8 +48,8 @@ typedef struct st_patternCharBlock
 }PatternCharBlock;
 
 
-void determineBestPatterns(int *buffer, int bufferLen);
-void printSuffTree(InternalNode *elemento);
+//void determineBestPatterns(int *buffer, int bufferLen);
+//void printSuffTree(InternalNode *elemento);
 
 
 #endif
