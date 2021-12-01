@@ -3,9 +3,7 @@
 
 #define MAXCHARBUFFER 64001 //the file will be read in these blocks of space (in bytes)
 
-#define MAXUNIQUECHARS 256
-
-#define UNIQUECHARVALUE 256 //used for an unique value of char
+#define MAXUNIQUECHARS 256 //the number of ascii characters
 
 #define DELETEDCHARVALUE 257 //used too replace a char value in the buffer that we deleted
 
@@ -23,6 +21,9 @@ typedef struct st_trieNode
 
     //the length of the pattern untill this char
     int depth;
+
+    //to use for locking when we read characters that are deleted
+    int locked;
 
 }TrieNode;
 
@@ -45,9 +46,17 @@ typedef struct st_patternCharBlock
 {
     PatternChar *pattern;
     int weight; //number or repetitions of the pattern in the buffer
+    int len; //length of the pattern
+    struct st_patternCharBlock *next;
 }PatternCharBlock;
 
-
+void freeAllTries(TrieManager *manager);
+void resetTries(TrieManager *manager, int lock);
+void freeTrie(TrieNode *node);
+void printCharBlock(PatternCharBlock *block);
+void printAllTries(TrieManager *manager);
+PatternCharBlock *bestPatternBlocks(int *buffer, int bufferLen);
+void deleteOneWeight(TrieManager *manager);
 //void determineBestPatterns(int *buffer, int bufferLen);
 //void printSuffTree(InternalNode *elemento);
 

@@ -238,7 +238,7 @@ int loadFileInBlocks(char *fileName)
 
     while(currentChar > 0)
     {
-        for(len = 0; len < MAXCHARBUFFER -1; len++)
+        for(len = 0; len < MAXCHARBUFFER; len++)
         {
 
             blockBuffer[len] = currentChar;
@@ -247,9 +247,10 @@ int loadFileInBlocks(char *fileName)
             if(currentChar < 0)
                 break;
         }
-        printf("len of string read = %d", len);
-        determineBestPatterns(blockBuffer, len+1);
-
+        
+        printf("\n\n---------block patterns--------------\n\n");
+        bestPatternBlocks(blockBuffer, len+1);
+        printf("\n\n-------------------------------------\n\n");
         if(currentChar < 0)
         {
             break;
