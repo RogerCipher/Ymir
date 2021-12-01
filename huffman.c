@@ -18,200 +18,101 @@ by: Rogério Chaves (AKA CandyCrayon), 2021
 #include "patterns.h"
 
 
-int printLL(TipoNode *cabeca)
+//insert a new charBlock in the (weighted) charblock list for huffman encoding
+int insertInWeightedList(PatternCharBlock **listHead, PatternCharBlock *block)
 {
-    TipoNode *iterador = NULL;
-    iterador = cabeca;
-    while (iterador != NULL)
-    {
-        printf("valor: %c, peso: %d\n", iterador->value, iterador->weight);
-        iterador = iterador->next;
-    }
-    return 1;
-    
-}
-
-
-
-//inserir um elemento da linked list no sitio certo dependendo do weight
-int insertInWeightedList(TipoNode **cabeca, TipoNode *elemento)
-{
-    if (*cabeca == NULL) {    // a linked list esta vazia
-        *cabeca = elemento;
+    if (*listHead == NULL) {    //list is empty
+        *listHead = block;
         return 1;
     }
 
-    TipoNode *iterador = *cabeca;
-    TipoNode *cauda = *cabeca;
-
-
-    while(iterador != NULL) {
-        cauda = iterador;
-        if (iterador->weight > elemento->weight) { // Insert before
-            elemento->next = iterador;
-            elemento->prev = iterador->prev;
-            iterador->prev = elemento;
-            if (elemento->prev == NULL) {
-                *cabeca = elemento;
-            } else {
-                elemento->prev->next = elemento;
-            }
-            return 1;
-        }
-        iterador = iterador->next;
+    if((*listHead)->weight > block->weight) //this block is a better head
+    {
+        block->next = *listHead;
+        *listHead = block;
+        return 1;
     }
 
-    // Add to list
-    cauda->next = elemento;
-    elemento->prev = cauda;
+    PatternCharBlock *iter = *listHead;
+    while (iter->next != NULL)        
+    {
+        if(block->weight < iter->next->weight)    //this block fits here
+        {
+            block->next = iter->next;
+            iter->next = block;
+            return 1;
+        }
 
+        iter = iter->next;
+    }
+
+    iter->next = block;          //this block goes in the end
+    block->next = NULL;
     return 0;
 }
 
-int createWeightedList(char *nomeFicheiro, TipoNode **cabeca)
+//recieves a linked list of patterns and returns the root to a huffman tree based on those patterns
+PatternCharBlock *generateHuffmanTree(PatternCharBlock *patterns)
 {
-    FILE *ficheiro = fopen(nomeFicheiro, "r");
-    if(ficheiro == NULL)
+    PatternCharBlock *root = NULL;
+    PatternCharBlock *iter = patterns;
+    PatternCharBlock *next = NULL;
+
+    //insert everything into a weighted list
+    while (iter != NULL)
     {
-        printf("Couldnt find file\n");
-        exit(1);
-    }
-
-    int currentChar = fgetc(ficheiro);
-    if(currentChar == EOF)
-    {
-        printf("File was empty\n");
-        exit(1);
-    }
-
-    //temp array to store weight of char
-    int weights[256];
-
-    for(int i = 0; i < 256; i++)
-        //inicialize all weights at 0
-        weights[i] = 0;
-
-
-    while (currentChar != EOF)
-    {
-        //o peso do char sera guardado na posicao (int)char
-        weights[(int)currentChar]++;
-        currentChar = fgetc(ficheiro);
+        next = iter;
+        insertInWeightedList(&root, iter);
+        iter = next;
     }
     
-    fclose(ficheiro);
-
-    for(int i = 0; i < 256; i++)
-    {
-        if(weights[i] != 0)
-        {
-            TipoNode *elemento = (TipoNode *)malloc(sizeof(TipoNode));
-            elemento->value = (char)i;
-            elemento->weight = weights[i];
-            elemento->prev = NULL;
-            elemento->next = NULL;
-            elemento->parent = NULL;
-            insertInWeightedList(cabeca, elemento);
-        }
-    }
-
-
-
-    printf("EOF\n");
-
+    PatternCharBlock *left = NULL;
+    PatternCharBlock *right = NULL;
     
+    while(root->next != NULL)
+    {
+        left = root;
+        right = root->next;
+        
+        root = root->next->next;
 
-    return 1;
-}
-
-//recebe uma linked list e retorna uma arvore
-TipoNode *huffmanTree(TipoNode **cabeca) {
-    TipoNode *left, *right;
-
-    while (1) {
-        left = (*cabeca);
-        right = (*cabeca)->next;
-
-
-        if (right == NULL) {    // se ja so ha 1 elemento esta feito
-            printf("bateu1\n");
-            return left;
-        }
-
-        //criar o node pai e preenchelo
-        TipoNode *parent = (TipoNode *)malloc(sizeof(TipoNode));
-        parent->value = 0;
-        parent->prev = NULL;
-        parent->next = NULL;
+        //create parent
+        PatternCharBlock *parent = (PatternCharBlock *)malloc(sizeof(PatternCharBlock));
         parent->leftChild = left;
         parent->rightChild = right;
         parent->weight = left->weight + right->weight;
-
-        //ligar os childs ao pai
-        parent->leftChild->parent = parent;
-        parent->rightChild->parent = parent;
-
-        //refazer a linked list actualizada
-        if(right->next == NULL)
-        {
-            printf("bateu2\n");
-            *cabeca = parent;
-            return parent;
-        }
-        *cabeca = right->next;
-        (*cabeca)->prev = NULL;
-        right->next = NULL;
-
-
-        /*
-
-        printf("prev: %d : %d\n", prev->value, prev->weight);
-        printf("next: %d: %d\n", next->value, next->weight);
-        printf("---\n");
-
-        */
-        insertInWeightedList(cabeca, parent);
+        parent->pattern = NULL;
+        parent->len = 0;
+        parent->next = NULL;
+        insertInWeightedList(&root, parent);
     }
+
+    return root;
 }
 
 
 
-void printHuffTree(TipoNode *elemento)
+void printHuffTree(PatternCharBlock *node)
 {
-    if (elemento->parent == NULL) 
+    if (node->pattern == NULL) 
     {
-        //estamos na raiz
-        printf("Copy the following code to https://dreampuf.github.io/GraphvizOnline\n");
-        printf("graph {\n");
-    }
-    if (elemento->value == 0) 
-    {
-        //elemento nao tem valor
-        printf("\tn%p [label = \"N/A : %d\"]\n", elemento, elemento->weight);
+        //no value, it must have children
+        printf("\tn%p [label = \"N/A : %d\"]\n", node, node->weight);
     } 
     else 
     {
-        //elemento tem valor
-        printf("\tn%p [label = \"%c : %d\"]\n", elemento, elemento->value, elemento->weight);
+        //it has value, cant have children
+        printf("\tn%p [label = \"", node);
+        printCharPattern(node->pattern);
+        printf("]\n");
+        return;
     }
-        
-    if (elemento->parent != NULL) 
-    {
-        //criar ligacao do pai ao filho
-        printf("\tn%p -- n%p\n", elemento->parent, elemento);
-    }
-    if (elemento->leftChild != NULL) 
-    {
-        //imprimir recursivamente para cada filho
-        printHuffTree(elemento->leftChild);    // imprimir primeiro filho
 
-        if(elemento->rightChild != NULL)
-            printHuffTree(elemento->rightChild);
-    }
-    if (elemento->parent == NULL) {
-        //fim
-        printf("}\n");
-    }
+    //conections with children
+    printf("\tn%p -- n%p\n", node, node->leftChild);
+    printHuffTree(node->leftChild);
+    printf("\tn%p -- n%p\n", node, node->rightChild);
+    printHuffTree(node->rightChild);
 }
 
 
@@ -249,8 +150,16 @@ int loadFileInBlocks(char *fileName)
         }
         
         printf("\n\n---------block patterns--------------\n\n");
-        bestPatternBlocks(blockBuffer, len+1);
+        PatternCharBlock *listOfPatterns = bestPatternBlocks(blockBuffer, len+1);
+        PatternCharBlock *huffRoot = generateHuffmanTree(listOfPatterns);
         printf("\n\n-------------------------------------\n\n");
+
+        printf("Copy the following code to https://dreampuf.github.io/GraphvizOnline\n");
+        printf("graph {\n");
+        printHuffTree(huffRoot);
+        printf("}\n");
+
+
         if(currentChar < 0)
         {
             break;
@@ -272,7 +181,7 @@ int main(int argc, char *argv[])
 {
 
     loadFileInBlocks(argv[1]);
-
+    
     /*
     TipoNode *cabeca = NULL;
     createWeightedList(argv[1], &cabeca);

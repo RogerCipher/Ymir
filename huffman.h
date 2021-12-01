@@ -1,7 +1,7 @@
 #ifndef __HUFFMAN_H__
 #define __HUFFMAN_H__
 
-
+#if 0
 typedef struct Node
 {
     //para a double linked list:
@@ -29,7 +29,7 @@ typedef struct st_charPatternList
     int len;
     CharPattern *head;
 }CharPatternList;
-
+#endif
 
 
 

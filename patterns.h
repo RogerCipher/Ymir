@@ -44,12 +44,18 @@ typedef struct st_patternChar
 
 typedef struct st_patternCharBlock
 {
-    PatternChar *pattern;
+    PatternChar *pattern; //actual pattern stored here
     int weight; //number or repetitions of the pattern in the buffer
     int len; //length of the pattern
-    struct st_patternCharBlock *next;
+
+    struct st_patternCharBlock *next; //next pattern in list
+
+
+    struct st_patternCharBlock *leftChild;
+    struct st_patternCharBlock *rightChild;
 }PatternCharBlock;
 
+void printCharPattern(PatternChar *pattern);
 void freeAllTries(TrieManager *manager);
 void resetTries(TrieManager *manager, int lock);
 void freeTrie(TrieNode *node);

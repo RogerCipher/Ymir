@@ -465,6 +465,20 @@ void printAllTries(TrieManager *manager)
     printf("}\n");
 }
 
+void printCharPattern(PatternChar *pattern)
+{
+    PatternChar *iter = pattern;
+    while (iter != NULL)
+    {
+        if(iter->value > 32 && iter->value < 127)
+            printf("%c ", iter->value);
+        else
+            printf("%d ", iter->value);
+        iter = iter->next;
+    }
+    
+}
+
 void printCharBlock(PatternCharBlock *block)
 {
     PatternChar *iter = block->pattern;
