@@ -21,8 +21,10 @@ by: Rogério Chaves (AKA CandyCrayon), 2021
 //insert a new charBlock in the (weighted) charblock list for huffman encoding
 int insertInWeightedList(PatternCharBlock **listHead, PatternCharBlock *block)
 {
+
     if (*listHead == NULL) {    //list is empty
         *listHead = block;
+        block->next = NULL;
         return 1;
     }
 
@@ -32,10 +34,12 @@ int insertInWeightedList(PatternCharBlock **listHead, PatternCharBlock *block)
         *listHead = block;
         return 1;
     }
+    
 
     PatternCharBlock *iter = *listHead;
     while (iter->next != NULL)        
     {
+        //printf("its this?");
         if(block->weight < iter->next->weight)    //this block fits here
         {
             block->next = iter->next;
@@ -61,14 +65,16 @@ PatternCharBlock *generateHuffmanTree(PatternCharBlock *patterns)
     //insert everything into a weighted list
     while (iter != NULL)
     {
-        next = iter;
+        next = iter->next;
         insertInWeightedList(&root, iter);
         iter = next;
     }
     
+    //start generating actual tree:
     PatternCharBlock *left = NULL;
     PatternCharBlock *right = NULL;
     
+    //we will do this untill the list only has one element
     while(root->next != NULL)
     {
         left = root;
@@ -104,7 +110,7 @@ void printHuffTree(PatternCharBlock *node)
         //it has value, cant have children
         printf("\tn%p [label = \"", node);
         printCharPattern(node->pattern);
-        printf("]\n");
+        printf("\"]\n");
         return;
     }
 
@@ -181,7 +187,7 @@ int main(int argc, char *argv[])
 {
 
     loadFileInBlocks(argv[1]);
-    
+
     /*
     TipoNode *cabeca = NULL;
     createWeightedList(argv[1], &cabeca);

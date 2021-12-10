@@ -51,8 +51,8 @@ typedef struct st_patternCharBlock
     struct st_patternCharBlock *next; //next pattern in list
 
 
-    struct st_patternCharBlock *leftChild;
-    struct st_patternCharBlock *rightChild;
+    struct st_patternCharBlock *leftChild; //left child in huffman tree
+    struct st_patternCharBlock *rightChild; //right child in huffman tree
 }PatternCharBlock;
 
 void printCharPattern(PatternChar *pattern);

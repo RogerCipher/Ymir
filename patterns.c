@@ -26,7 +26,7 @@ int heuristicResult(TrieNode *node)
 {   
     if(node->weight == 1)
         return 0;
-    return node->weight * node->depth +1;
+    return node->weight * node->depth*2;
 }
 
 TrieNode *bestNodeInTrie(TrieNode *node)
@@ -379,8 +379,9 @@ int isBufferEmpty(int *buffer, int bufferLen)
 }
 
 
-PatternCharBlock *bestPatternBlocks(int *buffer, int bufferLen)
+PatternCharBlock *bestPatternBlocks(int *buffer, int bufferLen) 
 {
+    //FIXME: THIS IS BUGGED STILL IM PRETTY SURE
     PatternCharBlock *bestPatterns = NULL;
     PatternCharBlock *iter = NULL;
 
@@ -471,9 +472,9 @@ void printCharPattern(PatternChar *pattern)
     while (iter != NULL)
     {
         if(iter->value > 32 && iter->value < 127)
-            printf("%c ", iter->value);
+            printf("%c", iter->value);
         else
-            printf("%d ", iter->value);
+            printf("%d", iter->value);
         iter = iter->next;
     }
     
