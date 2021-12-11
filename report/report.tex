@@ -7,10 +7,14 @@
 \maketitle
 
 \section{Introduction}
-Huffman Coding is an algorithm consisting in the contruction 
+Huffman Coding is a method for coding a message \textbf{m} 
+made of characters \textbf{c} such that every \textbf{c} has a 
+binary string \textbf{S} to represent it based on how many time it repeats on \textbf{m}.
+A highest number of repetitions of \textbf{c} in \textbf{m} translates in 
+\textbf{c} having a smaller length of \textbf{S} associated with it.
 \section{Assumptions}
 We will be assuming that a text character is stored in 1 byte (8 bits), 
-giving us a total of possible different byte values of 256 
+giving us a total of 256 possible different values
 \begin{equation}2^8 = 256\end{equation}
 let \textbf{c} be our character in decimal value:
 \begin{equation}\textbf{c} \in \mathbb{R} : \{0\leq C\leq255\}\end{equation}
