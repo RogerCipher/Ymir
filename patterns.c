@@ -16,11 +16,12 @@ by: Rogério Chaves (AKA CandyCrayon), 2021
 
 
 //return a range length
-int rangeLen(RangeNode *range)
+int rangeLen(RangeList *range)
 {
     return *range->rangeEnd - range->rangeStart +1;
 }
 
+/*
 //returns a range lenght from the root
 int suffixLength(RangeNode *range)
 {
@@ -33,14 +34,25 @@ int suffixLength(RangeNode *range)
 
     return myRangeLen;
 }
-
+*/
 
 //this function returns the result of the heuristic of a suffix in our suffix tree
 int heuristicResult(RangeNode *range)
 {   
-    int length = suffixLength(range);//suffixLength(range); //*range->rangeEnd - range->rangeStart +1;
+    int length = rangeLen(range->ranges);//suffixLength(range); //*range->rangeEnd - range->rangeStart +1;
 
     return (range->weight -1) * length;
+}
+
+RangeList *createRangeList(int rangeStart, int* rangeEnd)
+{
+    RangeList *newRangeList = (RangeList *)malloc(sizeof(RangeList));
+
+    newRangeList->next = NULL;
+    newRangeList->rangeStart = rangeStart;
+    newRangeList->rangeEnd = rangeEnd;
+
+    return newRangeList;
 }
 
 //calculates and returns the best heuristic result node from a parent internal node
@@ -74,7 +86,7 @@ RangeNode *bestRangeNode(InternalNode *elem)
     return bestNode;
 }
 
-
+/*
 PatternCharBlock *bestCharBlock(InternalNode *root, int *buffer)
 {
     //get the best pattern node:
@@ -182,8 +194,8 @@ void removeUniqueChar(InternalNode *elem, int positionOfUniqueChar)
         iter = next;
     }
 }
-
-
+*/
+//ukkonens
 InternalNode *createSuffixTree(int *buffer, int bufferLen)
 {
     InternalNode *root = (InternalNode *)malloc(sizeof(InternalNode));
@@ -217,15 +229,32 @@ InternalNode *createSuffixTree(int *buffer, int bufferLen)
                 found = 0;
                 while(iterRangeNode != NULL)
                 {
-                    if(buffer[iterRangeNode->rangeStart] == buffer[i])
+                    if(buffer[iterRangeNode->ranges->rangeStart] == buffer[i])
                     {
                         //found it, lets increase our active Length and weight
                         activeLength++;
-                        activeEdge = iterRangeNode->rangeStart;
+                        activeEdge = iterRangeNode->ranges->rangeStart;
 
                         //this node is repeated
-                        //iterRangeNode->weight++;
-                        //increaseRepetitions(iterRangeNode);
+                        iterRangeNode->weight++;
+
+                        //create a new range starting from this point
+                        RangeList *newRange = createRangeList(i, end);
+
+                        //cut the current last range in the range list
+                        int *cuttedEnd = (int *)malloc(sizeof(int));
+                        *cuttedEnd = i-1;
+
+                        RangeList *lastRange = iterRangeNode->ranges;
+                        while (lastRange->next != NULL)
+                            lastRange = lastRange->next;
+
+                        lastRange->rangeEnd = cuttedEnd;
+
+                        //connect the ranges
+                        lastRange->next = newRange;
+                        
+
                         //this is a show stopper btw
                         found = 1;
                         break;
@@ -242,9 +271,9 @@ InternalNode *createSuffixTree(int *buffer, int bufferLen)
                 //we are going to have to create a node with this value:
                 RangeNode *newRangeNode =  (RangeNode *)malloc(sizeof(RangeNode));
                 newRangeNode->nextInternalNode = NULL;
-                newRangeNode->rangeStart = i;
-                newRangeNode->rangeEnd = end;
-                newRangeNode->weight = 0;
+                RangeList *newRangeList = createRangeList(i, end);
+                newRangeNode->ranges = newRangeList;
+                newRangeNode->weight = 1;
                 newRangeNode->sibling = NULL;
                 newRangeNode->prevInternalNode = activeNode;
                 //and now we add it to the end of the range list of the activeNode:
@@ -276,7 +305,7 @@ InternalNode *createSuffixTree(int *buffer, int bufferLen)
                 found = 0;
                 while (iterRangeNode != NULL)
                 {
-                    if(buffer[iterRangeNode->rangeStart] == buffer[activeEdge])
+                    if(buffer[iterRangeNode->ranges->rangeStart] == buffer[activeEdge])
                     {
                         //we have found the range node we want to travel in
                         found = 1;
@@ -293,7 +322,7 @@ InternalNode *createSuffixTree(int *buffer, int bufferLen)
             
 
                 //first of all, we check to see if this is going to make us jump to the top of a node:
-                if(activeLength == (*iterRangeNode->rangeEnd - iterRangeNode->rangeStart +1))
+                if(activeLength ==  rangeLen(iterRangeNode->ranges))
                 {
                     //we do! so all we have to do is change the active node the jumped node
                     //and change the activeLenght to 0 and let the code handle it:
@@ -310,7 +339,7 @@ InternalNode *createSuffixTree(int *buffer, int bufferLen)
 
                 }
                 //then we check if we are going to jump further than the next node:
-                else if(activeLength > (*iterRangeNode->rangeEnd - iterRangeNode->rangeStart +1))
+                else if(activeLength > rangeLen(iterRangeNode->ranges))
                 {
                     //oh no, we have to jump not only the node but we dont know where we are going after, wish us luck
                     if(iterRangeNode->nextInternalNode == NULL)
@@ -321,13 +350,13 @@ InternalNode *createSuffixTree(int *buffer, int bufferLen)
                     activeNode = iterRangeNode->nextInternalNode;
                     //activeNode->pathList->weight++;
                     activeEdge += activeLength;
-                    activeLength = activeLength - (*iterRangeNode->rangeEnd - iterRangeNode->rangeStart +1);
+                    activeLength = activeLength - rangeLen(iterRangeNode->ranges);
                 }
                 else
                 {   
                     //yey we dont have to jump anything! so first we see if the next value
                     //is the value that we want:
-                    if(buffer[iterRangeNode->rangeStart+activeLength] == buffer[i])
+                    if(buffer[iterRangeNode->ranges->rangeStart+activeLength] == buffer[i])
                     {
                         //it is! nice, we just add to active lenght
                         activeLength++;
@@ -348,48 +377,76 @@ InternalNode *createSuffixTree(int *buffer, int bufferLen)
 
 
                        
-
+                        //we will need to split this ranges in to 2 range Nodes, we can calculate the
+                        //range node formed by the range list previously there at the same time we are cutting the ranges:
 
                         //now we will cut every range in the current range nodes range list
                         //at the same time we create the new range for the new internalNode Ranges:
 
-                        //cut the old range
-                        int *thisRangeEnd = (int *)malloc(sizeof(int));
-                        *thisRangeEnd = iterRangeNode->rangeStart + activeLength -1;
+                        //cut the old range + create the split range derived from it
+                        RangeList *derivedRangeListHead = NULL;
+                        RangeList *derivedRangeListTail = NULL;
+                        RangeList *iterRangeList = iterRangeNode->ranges;
+                        while (iterRangeList != NULL)
+                        {
+                            //calculate the new range end for the node we are splitting
+                            int *oldRangeEnd = (int *)malloc(sizeof(int));
+                            *oldRangeEnd = iterRangeList->rangeStart + activeLength -1;
+
+                            //calculate the rangeEnd for the splitted part of it
+                            RangeList *derivedRangeListNode = createRangeList(iterRangeList->rangeStart + activeLength ,iterRangeList->rangeEnd);
+
+                            //add it to the end of the derived range list
+                            if(derivedRangeListHead == NULL)
+                            {
+                                //its the first element
+                                derivedRangeListHead = derivedRangeListNode;
+                                derivedRangeListTail = derivedRangeListNode;
+                            }
+                            else
+                            {
+                                //if its not the head add it in the end of the range list:
+                                derivedRangeListTail->next = derivedRangeListNode;
+                                derivedRangeListTail = derivedRangeListNode;
+                            }
+                            
+                            //finish splitting the old range
+                            iterRangeList->rangeEnd = oldRangeEnd;
+                            iterRangeList = iterRangeList->next;
+                        }
                         
+                        //make the internal node to connect the derived range and the new range to the old range that was there
                         newInternalNode->prevRangeNode = iterRangeNode;
 
                         //finally we just need the RangeNode to add here with the new range list:
-                        RangeNode *newRangeNode = (RangeNode *)malloc(sizeof(RangeNode));
+                        RangeNode *derivedRangeNode = (RangeNode *)malloc(sizeof(RangeNode));
+
                         //connect the next internal node like it was before
-                        newRangeNode->nextInternalNode = iterRangeNode->nextInternalNode;
-                        newRangeNode->rangeStart = iterRangeNode->rangeStart + activeLength;
-                        newRangeNode->rangeEnd = iterRangeNode->rangeEnd;
-                        newRangeNode->prevInternalNode = newInternalNode;
+                        derivedRangeNode->nextInternalNode = iterRangeNode->nextInternalNode;
 
-                        //and update it
-                        //update old ranges end
-                        iterRangeNode->rangeEnd = thisRangeEnd;
+                        //store here the derived ranges we calculated previously
+                        derivedRangeNode->ranges = derivedRangeListHead;
 
-
-                        newRangeNode->weight = iterRangeNode->weight -1;
-                        newRangeNode->sibling = NULL;
-                        newInternalNode->pathList = newRangeNode;
+                        //connect the dots + fill some more data
+                        derivedRangeNode->prevInternalNode = newInternalNode;
+                        derivedRangeNode->weight = iterRangeNode->weight -1;
+                        derivedRangeNode->sibling = NULL;
+                        newInternalNode->pathList = derivedRangeNode;
 
                         //now we can put this internal node where it should be
                         iterRangeNode->nextInternalNode = newInternalNode;
 
-                        //create the node for the ranges we just split above:
+                        //noew, finally, we can create the new range that splitted this node:
                         RangeNode *newSplitRangeNode = (RangeNode *)malloc(sizeof(RangeNode));
                         newSplitRangeNode->nextInternalNode = NULL;
                         newSplitRangeNode->weight = 0;
                         newSplitRangeNode->sibling = NULL;
-                        newSplitRangeNode->rangeStart = i;
-                        newSplitRangeNode->rangeEnd = end;
+                        RangeList *splitRangeList = createRangeList(i, end);
+                        newSplitRangeNode->ranges = splitRangeList;
                         newSplitRangeNode->prevInternalNode = newInternalNode;
 
                         //add it to the ranges of the internal node we created
-                        newRangeNode->sibling = newSplitRangeNode;
+                        derivedRangeNode->sibling = newSplitRangeNode;
 
                         //we are done, now we just continue the ukkonens:
                         if(newInternalNode == NULL)
@@ -493,7 +550,14 @@ void printSuffTree(InternalNode *elemento)
     
     while (iter != NULL)
     {
-        printf("\tn%p [label = \"[%d, %d] (%d, %d)\"]\n""", iter, iter->rangeStart, *iter->rangeEnd, iter->weight , suffixLength(iter));
+        RangeList *iterList = iter->ranges;
+        printf("\tn%p [label = \"", iter);
+        while (iterList != NULL)
+        {
+            printf("[%d, %d]\n", iterList->rangeStart, *iterList->rangeEnd);
+            iterList = iterList->next;
+        }
+        printf("\"]\n");
         printf("\tn%p -- n%p\n", elemento, iter);
 
 
@@ -529,6 +593,7 @@ void printCharBlock(PatternCharBlock *block)
     printf("\n---------------");
 }
 
+/*
 //free the suffix tree (duuh)
 int freeSuffTree(InternalNode *elem)
 {
@@ -559,6 +624,7 @@ int freeSuffTree(InternalNode *elem)
     elem = NULL;
     return 1;
 }
+*/
 
 void determineBestPatterns(int *buffer, int bufferLen)
 {
@@ -579,12 +645,12 @@ void determineBestPatterns(int *buffer, int bufferLen)
     InternalNode *root = createSuffixTree(buffer, bufferLen+1);
 
     //we then count the repetitions of each node
-    fillRepetitionsInTree(root);
+    //fillRepetitionsInTree(root);
 
 
     //finally we will remove the unique char value that transformed the tree into a 
     //true suffix tree
-    removeUniqueChar(root, bufferLen);
+    //removeUniqueChar(root, bufferLen);
 
 
 
@@ -597,13 +663,13 @@ void determineBestPatterns(int *buffer, int bufferLen)
     printf("\tn%p -- nbestNode\n", bestRangeNode(root));
     printf("}\n");
 
-    printCharBlock(bestCharBlock(root, buffer));
+    //printCharBlock(bestCharBlock(root, buffer));
 
     
     //freeSuffTree(root);
 }
 
-#if 0
+//#if 0
 /*--------------- main -------------*/
 int main(int argc, char *argv[])
 {
@@ -644,4 +710,4 @@ int main(int argc, char *argv[])
 
     return 1;
 }
-#endif
+//#endif

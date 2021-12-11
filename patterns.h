@@ -7,12 +7,23 @@
 
 #define DELETEDCHARVALUE 257 //used too replace a char value in the buffer that we deleted
 
+
+typedef struct st_RangeList
+{
+
+    //storing the information of the next node
+    struct st_RangeList *next;
+
+    //storing the range of this node
+    int rangeStart;
+    int *rangeEnd;
+}RangeList;
+
 //a node that contains information about ranges and the next trieNode
 typedef struct st_RangeTrieNode
 {
     //storing the range of this node
-    int rangeStart;
-    int *rangeEnd;
+    RangeList *ranges;
 
 
     //for storing the length of the suffix
